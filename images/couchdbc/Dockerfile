@@ -25,6 +25,7 @@ RUN apt-get update -y && apt-get install -y --no-install-recommends \
     libicu52 \
     libmozjs185-1.0 \
     openssl \
+    vim \
   && rm -rf /var/lib/apt/lists/*
 
 # grab gosu for easy step-down from root and tini for signal handling

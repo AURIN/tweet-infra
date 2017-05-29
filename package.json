@@ -1,6 +1,6 @@
 {
-  "name": "openapi-infra",
-  "version": "1.2.0-SNAPSHOT",
+  "name": "tweet-infra",
+  "version": "0.1.0-SNAPSHOT",
   "description": "Building and deployment of the Open API infrastructure",
   "private": true,
   "author": {
@@ -17,12 +17,12 @@
     "grunt-contrib-copy": "^0.8.1",
     "grunt-contrib-watch": "^0.6.1",
     "grunt-dock": "git+https://github.com/lmoran/grunt-dock.git#master",
-    "grunt-clouddity": "git+https://github.com/lmoran/grunt-clouddity.git#v0.8.0",
+    "grunt-clouddity": "git+https://github.com/lmoran/grunt-clouddity.git#master",
     "grunt-http": "2.0.1",
     "grunt-wait": "0.1.0",
     "grunt-mkdir": "^0.1.2",
     "grunt-ejs": "^0.3.0",
-    "grunt-run": "^0.5.2",
+    "grunt-run": "^0.6.0",
     "grunt-ssh": "^0.12.9",
     "load-grunt-tasks" : "~3.3.0"
   }

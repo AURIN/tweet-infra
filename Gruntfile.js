@@ -71,20 +71,31 @@ module.exports = function(grunt) {
           docker : grunt.sensitiveConfig.docker,
           ssh : grunt.sensitiveConfig.ssh,
           cluster : "tweet",
+
           nodetypes : [ {
             name : "lb",
             replication : 1, // NOTE: the can only be one load balancer
             imageRef : "73c6f8d8-f885-4253-8bee-e45da068fb65",
             flavorRef : "885227de-b7ee-42af-a209-2f1ff59bc330",
             securitygroups : [ "defaultsg", "lbsg" ],
-            images : [ "couchdbc" ]
+            images : [ "couchdbc" ],
           }, {
             name : "db",
             replication : 2,
             imageRef : "73c6f8d8-f885-4253-8bee-e45da068fb65",
             flavorRef : "885227de-b7ee-42af-a209-2f1ff59bc330",
             securitygroups : [ "defaultsg", "couchdbsg" ],
-            images : [ "couchdbc" ]
+            images : [ "couchdbc" ],
+            volumes : [ "dbdata" ]
+          } ],
+
+          volumetypes : [ {
+            name : "dbdata",
+            size : 1,
+            description : "CouchDB Data",
+            availability_zone : grunt.sensitiveConfig.pkgcloud.availability_zone,
+            mountpoint: "/hostvolume",
+            fstype: "ext4"
           } ],
 
           securitygroups : {
@@ -326,31 +337,6 @@ module.exports = function(grunt) {
               body : "{}",
               auth : grunt.sensitiveConfig.couchdb.auth
             }
-          },
-          replicatedb : {
-            options : {
-              url : "http://" + (grunt.option("cluster") || "ccdev")
-                  + "-1-couchdbc:5984/_replicate",
-              method : "post",
-              headers : {
-                "Content-Type" : "application/json"
-              },
-              body : JSON.stringify({
-                target : "http://"
-                    + grunt.sensitiveConfig.couchdb.auth.username + ":"
-                    + grunt.sensitiveConfig.couchdb.auth.password + "@"
-                    + (grunt.option("cluster") || "ccdev")
-                    + "-1-couchdbc:5984/" + grunt.option("database"),
-                source : "http://"
-                    + grunt.sensitiveConfig.replication.auth.username + ":"
-                    + grunt.sensitiveConfig.replication.auth.password + "@"
-                    + grunt.sensitiveConfig.replication.url + "/"
-                    + grunt.option("database"),
-                create_target : false,
-                continuous : true
-              }),
-              auth : grunt.sensitiveConfig.couchdb.auth
-            }
           }
         }
 
@@ -375,12 +361,19 @@ module.exports = function(grunt) {
   grunt.registerTask("destroy", [ "clouddity:destroynodes", "wait",
       "clouddity:destroysecuritygroups" ]);
 
+  // Utility tasks to create/attach, and detach/delete volumes
+  grunt.registerTask("launchvolumes", [ "clouddity:createvolumes", "wait",
+      "clouddity:attachvolumes", "clouddity:mountvolumes" ]);
+  grunt.registerTask("destroyvolumes", [ "clouddity:detachvolumes", "wait",
+      "clouddity:deletevolumes" ]);
+
   // Pulls the Docker images from registry
   grunt.registerTask("pull", [ "clouddity:pull" ]);
 
   // Listing cluster components tasks
-  grunt.registerTask("listsecuritygroups", [ "clouddity:listsecuritygroups" ]);
   grunt.registerTask("listnodes", [ "clouddity:listnodes" ]);
+  grunt.registerTask("listsecuritygroups", [ "clouddity:listsecuritygroups" ]);
+  grunt.registerTask("listvolumes", [ "clouddity:listvolumes" ]);
   grunt.registerTask("listcontainers", [ "clouddity:listcontainers" ]);
 
   // Docker containers creation
