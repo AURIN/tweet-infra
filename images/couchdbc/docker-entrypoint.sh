@@ -17,10 +17,10 @@ set -x
 
 if [ "$1" = '/opt/couchdb/bin/couchdb' ]; then
   # we need to set the permissions here because docker mounts volumes as root
-  mkdir -p /hostvolume/couchdb/data
-  chmod -R 0770 /hostvolume/couchdb/data
+  mkdir -p ${COUCHDBDATA}/couchdb/data
+  chmod -R 0770 ${COUCHDBDATA}/couchdb/data
   chown -R couchdb:couchdb /opt/couchdb
-  chown -R couchdb:couchdb /hostvolume/couchdb/data
+  chown -R couchdb:couchdb ${COUCHDBDATA}/couchdb/data
   chmod 664 /opt/couchdb/etc/*.ini
   chmod 664 /opt/couchdb/etc/local.d/*.ini
   chmod 775 /opt/couchdb/etc/*.d

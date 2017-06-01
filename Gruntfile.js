@@ -24,6 +24,25 @@ module.exports = function(grunt) {
           }
         },
 
+        "couch-compile" : {
+          twitter : {
+            files : {
+              "/tmp/twitter.json" : "couchdb/*"
+            }
+          }
+        },
+        "couch-push" : {
+          options : {
+            user : grunt.sensitiveConfig.couchdb.auth.split(":")[0],
+            pass : grunt.sensitiveConfig.couchdb.auth.split(":")[1]
+          },
+          localhost : {
+            files : {
+              "http://tweet-2-db:5984/twitter" : "/tmp/twitter.json"
+            }
+          }
+        },
+
         dock : {
           options : {
             auth : grunt.sensitiveConfig.docker.registry.auth,
@@ -47,7 +66,7 @@ module.exports = function(grunt) {
                   run : {
                     create : {
                       HostConfig : {
-                        Binds : [ "/mnt:/hostvolume" ],
+                        Binds : [ "/mnt/couchdbdatavolume:/datavolume" ],
                         NetworkMode : "host"
                       },
                       Env : [
@@ -72,30 +91,35 @@ module.exports = function(grunt) {
           ssh : grunt.sensitiveConfig.ssh,
           cluster : "tweet",
 
-          nodetypes : [ {
-            name : "lb",
-            replication : 1, // NOTE: the can only be one load balancer
-            imageRef : "73c6f8d8-f885-4253-8bee-e45da068fb65",
-            flavorRef : "885227de-b7ee-42af-a209-2f1ff59bc330",
-            securitygroups : [ "defaultsg", "lbsg" ],
-            images : [ "couchdbc" ],
-          }, {
-            name : "db",
-            replication : 2,
-            imageRef : "73c6f8d8-f885-4253-8bee-e45da068fb65",
-            flavorRef : "885227de-b7ee-42af-a209-2f1ff59bc330",
-            securitygroups : [ "defaultsg", "couchdbsg" ],
-            images : [ "couchdbc" ],
-            volumes : [ "dbdata" ]
-          } ],
+          nodetypes : [
+              {
+                name : "lb",
+                replication : 1,
+                imageRef : "73c6f8d8-f885-4253-8bee-e45da068fb65",
+                flavorRef : "639b8b2a-a5a6-4aa2-8592-ca765ee7af63",
+                availability_zone : grunt.sensitiveConfig.pkgcloud.availability_zone,
+                securitygroups : [ "defaultsg", "lbsg" ],
+                images : [ "couchdbc" ],
+              },
+              {
+                name : "db",
+                replication : 2,
+                imageRef : "73c6f8d8-f885-4253-8bee-e45da068fb65",
+                flavorRef : "885227de-b7ee-42af-a209-2f1ff59bc330",
+                availability_zone : grunt.sensitiveConfig.pkgcloud.availability_zone,
+                securitygroups : [ "defaultsg", "couchdbsg" ],
+                images : [ "couchdbc" ],
+                volumes : [ "dbdata" ]
+              } ],
 
           volumetypes : [ {
             name : "dbdata",
             size : 1,
             description : "CouchDB Data",
-            availability_zone : grunt.sensitiveConfig.pkgcloud.availability_zone,
-            mountpoint: "/hostvolume",
-            fstype: "ext4"
+            volumeType : grunt.sensitiveConfig.pkgcloud.volume_type,
+            availability_zone : grunt.sensitiveConfig.pkgcloud.availability_zone_volume,
+            mountpoint : "/mnt/couchdbdatavolume",
+            fstype : "ext4"
           } ],
 
           securitygroups : {
@@ -135,13 +159,6 @@ module.exports = function(grunt) {
                 portRangeMin : 22,
                 portRangeMax : 22,
                 remoteIpPrefix : "0.0.0.0/0"
-              }, {
-                direction : "ingress",
-                ethertype : "IPv4",
-                protocol : "tcp",
-                portRangeMin : 2375,
-                portRangeMax : 2375,
-                remoteIpPrefix : grunt.customConfig.devIPs
               }, {
                 direction : "ingress",
                 ethertype : "IPv4",
@@ -191,155 +208,75 @@ module.exports = function(grunt) {
 
         // Add a node to the cluster
         http : {
-          addusersdb : {
+          addcouchnode : {
             options : {
-              url : "http://" + grunt.option("ip") + ":5984/_users",
+              url : "http://" + grunt.sensitiveConfig.couchdb.auth + "@"
+                  + grunt.option("masterip") + ":5986/_nodes/couchdb@"
+                  + grunt.option("slaveip"),
               method : "put",
               headers : {
                 "Content-Type" : "application/json"
               },
-              body : "{}",
-              auth : grunt.sensitiveConfig.couchdb.auth
+              body : "{}"
             }
           },
-          addchangesdb : {
+          removecouchnode : {
             options : {
-              url : "http://" + grunt.option("ip") + ":5984/_global_changes",
-              method : "put",
-              headers : {
-                "Content-Type" : "application/json"
-              },
-              body : "{}",
-              auth : grunt.sensitiveConfig.couchdb.auth
-            }
-          },
-          addmetadatadb : {
-            options : {
-              url : "http://" + grunt.option("ip") + ":5984/_metadata",
-              method : "put",
-              headers : {
-                "Content-Type" : "application/json"
-              },
-              body : "{}",
-              auth : grunt.sensitiveConfig.couchdb.auth
-            }
-          },
-          addreplicatordb : {
-            options : {
-              url : "http://" + grunt.option("ip") + ":5984/_replicator",
-              method : "put",
-              headers : {
-                "Content-Type" : "application/json"
-              },
-              body : "{}",
-              auth : grunt.sensitiveConfig.couchdb.auth
-            }
-          },
-          addcouchdbnode : {
-            options : {
-              url : "http://" + grunt.option("masterip")
-                  + ":5986/_nodes/couchdb@" + grunt.option("slaveip"),
-              method : "put",
-              headers : {
-                "Content-Type" : "application/json"
-              },
-              body : "{}",
-              auth : grunt.sensitiveConfig.couchdb.auth
-            }
-          },
-          createtestdb : {
-            options : {
-              url : "http://" + (grunt.option("cluster") || "ccdev")
-                  + "-1-couchdbc:5984/test",
-              method : "put",
-              headers : {
-                "Content-Type" : "application/json"
-              },
-              body : "{}",
-              auth : grunt.sensitiveConfig.couchdb.auth
-            }
-          },
-          removetestdb : {
-            options : {
-              url : "http://" + (grunt.option("cluster") || "ccdev")
-                  + "-1-couchdbc:5984/test",
+              url : "http://" + grunt.sensitiveConfig.couchdb.auth + "@"
+                  + grunt.option("masterip") + ":5986/_nodes/couchdb@"
+                  + grunt.option("slaveip"),
               method : "delete",
               headers : {
                 "Content-Type" : "application/json"
               },
-              body : "{}",
-              auth : grunt.sensitiveConfig.couchdb.auth
+              body : "{}"
             }
           },
-          adddoc1 : {
+          clusternodes : {
             options : {
-              url : "http://" + (grunt.option("cluster") || "ccdev")
-                  + "-1-couchdbc:5984/test",
-              method : "post",
-              headers : {
-                "Content-Type" : "application/json"
-              },
-              body : JSON.stringify({
-                name : "jock"
-              }),
-              auth : grunt.sensitiveConfig.couchdb.auth
-            }
-          },
-          adddoc2 : {
-            options : {
-              url : "http://" + (grunt.option("cluster") || "ccdev")
-                  + "-2-couchdbc:5984/test",
-              method : "post",
-              headers : {
-                "Content-Type" : "application/json"
-              },
-              body : JSON.stringify({
-                name : "tom"
-              }),
-              auth : grunt.sensitiveConfig.couchdb.auth
-            }
-          },
-          adddoc3 : {
-            options : {
-              url : "http://" + (grunt.option("cluster") || "ccdev")
-                  + "-3-couchdbc:5984/test",
-              method : "post",
-              headers : {
-                "Content-Type" : "application/json"
-              },
-              body : JSON.stringify({
-                name : "jean"
-              }),
-              auth : grunt.sensitiveConfig.couchdb.auth
-            }
+              url : "http://" + grunt.sensitiveConfig.couchdb.auth + "@"
+                  + grunt.option("masterip") + ":5984/_membership",
+              method : "get"
+            },
+            dest : "/tmp/membership.json"
           },
           createdb : {
             options : {
-              url : "http://" + (grunt.option("cluster") || "ccdev")
-                  + "-1-couchdbc:5984/" + grunt.option("database"),
+              url : "http://" + grunt.sensitiveConfig.couchdb.auth + "@"
+                  + grunt.option("masterip") + ":5984/"
+                  + grunt.option("database"),
               method : "put",
               headers : {
                 "Content-Type" : "application/json"
               },
-              body : "{}",
-              auth : grunt.sensitiveConfig.couchdb.auth
+              body : "{}"
+            }
+          },
+          deletedb : {
+            options : {
+              url : "http://" + grunt.sensitiveConfig.couchdb.auth + "@"
+                  + grunt.option("masterip") + ":5984/"
+                  + grunt.option("database"),
+              method : "delete",
+              headers : {
+                "Content-Type" : "application/json"
+              },
+              body : "{}"
             }
           },
           compactdb : {
             options : {
-              url : "http://" + (grunt.option("cluster") || "ccdev")
-                  + "-1-couchdbc:5984/" + grunt.option("database")
-                  + "/_compact",
+              url : "http://" + grunt.sensitiveConfig.couchdb.auth + "@"
+                  + grunt.option("masterip") + ":5984/"
+                  + grunt.option("database") + "/_compact",
               method : "post",
               headers : {
                 "Content-Type" : "application/json"
               },
-              body : "{}",
-              auth : grunt.sensitiveConfig.couchdb.auth
+              body : "{}"
             }
           }
         }
-
       });
 
   // Dependent tasks declarations
@@ -355,10 +292,10 @@ module.exports = function(grunt) {
   grunt.registerTask("push", [ "dock:push" ]);
 
   // Utility tasks to provision and un-provision the cluster in one go
-  grunt.registerTask("launch", [ "clouddity:createsecuritygroups", "wait",
+  grunt.registerTask("launchnodes", [ "clouddity:createsecuritygroups", "wait",
       "clouddity:createnodes", "wait", "clouddity:updatesecuritygroups",
       "wait", "clouddity:addhosts" ]);
-  grunt.registerTask("destroy", [ "clouddity:destroynodes", "wait",
+  grunt.registerTask("destroynodes", [ "clouddity:destroynodes", "wait",
       "clouddity:destroysecuritygroups" ]);
 
   // Utility tasks to create/attach, and detach/delete volumes

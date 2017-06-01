@@ -98,14 +98,18 @@ RUN buildDeps=' \
 COPY local.ini /opt/couchdb/etc/local.d/
 COPY vm.args /opt/couchdb/etc/
 COPY ./docker-entrypoint.sh /
+COPY ./setup-couchdb.sh /
 
 # Setup directories and permissions
-RUN chmod +x /docker-entrypoint.sh \
+RUN chmod +x /*.sh \
  && mkdir /opt/couchdb/etc/default.d /var/log/couchdb\
  && chown -R couchdb:couchdb /opt/couchdb/ /var/log/couchdb
 
 WORKDIR /opt/couchdb
 EXPOSE 5984 5986 4369 9100-9200
+
+# NOTE: When this variable is changed, the database_dir in local.ini has to be changed as well
+ENV COUCHDBDATA /datavolume
 
 ENTRYPOINT ["tini", "--", "/docker-entrypoint.sh"]
 CMD ["/opt/couchdb/bin/couchdb"]

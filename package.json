@@ -24,6 +24,7 @@
     "grunt-ejs": "^0.3.0",
     "grunt-run": "^0.6.0",
     "grunt-ssh": "^0.12.9",
+    "grunt-couch": "v1.5.x",
     "load-grunt-tasks" : "~3.3.0"
   }
 }
