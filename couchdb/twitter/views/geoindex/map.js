@@ -7,6 +7,6 @@ function(doc) {
   }
 
   var date = new Date(doc.created_at);
-  emit([ geohash.encodeGeoHash(doc.coordinates.coordinates[1], doc.coordinates.coordinates[0]),
-      doc.location, date.getFullYear(), date.getMonth() + 1, date.getDate() ], 1);
+  emit([ geohash.encodeGeoHash(doc.coordinates.coordinates[1], doc.coordinates.coordinates[0]), 
+    date.getFullYear(), date.getMonth() + 1, date.getDate() ], 1);
 }
