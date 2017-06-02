@@ -38,7 +38,7 @@ module.exports = function(grunt) {
           },
           localhost : {
             files : {
-              "http://tweet-2-db:5984/twitter" : "/tmp/twitter.json"
+              "http://tweet-1-db:5984/twitter" : "/tmp/twitter.json"
             }
           }
         },

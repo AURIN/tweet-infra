@@ -27,14 +27,23 @@ grunt create
 grunt start
 ```
 
+
 ## CouchDB setup
 
 Creation of default database
 ```
-grunt clouddity:exec --nodetype db --command "/setup-couchdb.sh"
+export NODES=`cat /etc/hosts | egrep "tweet-.-db" | cut -f 1 -d' ' | paste -d' ' -s`
+export DATABASES='_users _global_changes _metadata _replicator'
+for ip in ${NODES}
+do
+  for db in ${DATABASES}
+  do
+    grunt http:createdb --masterip ${ip} --database ${db}
+  done
+done
 ```
 
-Cluster setup (tweet-1-db is the mastr, the rest are added as slaves)
+Cluster setup (tweet-1-db is the manager)
 ```
 export NODES=`cat /etc/hosts | egrep "tweet-[234567889]-db" | cut -f 1 -d' ' | paste -d' ' -s`
 for ip in ${NODES}
@@ -48,11 +57,12 @@ This should show all the nodes being part of the cluster
 grunt http:clusternodes --masterip tweet-1-db && cat /tmp/membership.json
 ```
 
-Crerate the twitter database and accompanying design deocuments
+Create the twitter database and accompanying design documents
 ```
 grunt http:createdb --masterip tweet-1-db --database twitter
 grunt couch-compile couch-push 
 ```
+
 
 ## De-commissioning
 
