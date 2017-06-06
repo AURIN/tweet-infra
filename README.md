@@ -3,10 +3,22 @@ Tweets harvesting and storage infrastucture
 
 ## Requirements
 
-On average 2.2GB of space are needed for every 1M tweets. Therefore, somew 200GB are neeed to host the about 
-90M tweets that have been harvested so far.
-With a replica factor of 2, 4.4GB are needed for every 1M tweets, bringing the disk space for 200M tweets 
-(a total that would be reached in a year or so) to 900GB.
+On average 2.2GB of space are needed for every 1M tweets with a replication factor of 3. 
+Therefore, some 194GB are needed (on each node) to host the about 90M tweets that have been harvested so far.
+In addition, 182M tweets are expected to be collected every year, hence 393GB are needed, per-node, every year. 
+
+Total storage need to (on a four-node cluster, with some slack) are as follows:
+* Existing 90M tweets take 194GB * 4 = 778GB 
+* New (yearly) 180M tweets take 393G * 4 = 1573GB 
+
+To keep the system running for 4 years and store the already collected tweets, the total storage space would be:
+around 7072GB (or 1768GB per-node).
+
+
+ to be 440GB are needed for th host the 270M tweets 
+
+4 database nodes with 1TB each should be enough to cover for contingencies, but periodic compaction woudl probably 
+lessen the disk space needed. 
 
 
 ## Provisioning
@@ -69,5 +81,5 @@ grunt couch-compile couch-push
 ```
 grunt remove
 grunt destroyvolumes
-grunt destroynodes 
+grunt destroynodes 3
 ```

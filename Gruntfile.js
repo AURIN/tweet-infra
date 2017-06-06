@@ -1,5 +1,3 @@
-"use strict";
-
 module.exports = function(grunt) {
 
   grunt.sensitiveConfig = grunt.file.readJSON("./sensitive.json");
@@ -27,7 +25,7 @@ module.exports = function(grunt) {
         "couch-compile" : {
           twitter : {
             files : {
-              "/tmp/twitter.json" : "couchdb/*"
+              "/tmp/twitter.json" : "nodetypes/db/*"
             }
           }
         },
@@ -80,6 +78,29 @@ module.exports = function(grunt) {
                     cmd : []
                   }
                 }
+              },
+              apache : {
+                dockerfile : "./images/apache",
+                tag : "2.4",
+                repo : "apache",
+                options : {
+                  build : {
+                    t : grunt.sensitiveConfig.docker.registry.serveraddress
+                        + "/apache:2.4",
+                    pull : false,
+                    nocache : false
+                  },
+                  run : {
+                    create : {
+                      HostConfig : {
+                        Binds : [ "/home/ubuntu/:/hostvolume" ],
+                        NetworkMode : "host"
+                      }
+                    },
+                    start : {},
+                    cmd : []
+                  }
+                }
               }
             }
           }
@@ -99,7 +120,11 @@ module.exports = function(grunt) {
                 flavorRef : "639b8b2a-a5a6-4aa2-8592-ca765ee7af63",
                 availability_zone : grunt.sensitiveConfig.pkgcloud.availability_zone,
                 securitygroups : [ "defaultsg", "lbsg" ],
-                images : [ "couchdbc" ],
+                images : [ "apache" ],
+                copytohost : [ {
+                  from : "./target/nodetypes/lb/",
+                  to : "/home/ubuntu"
+                } ]
               },
               {
                 name : "db",
@@ -124,24 +149,8 @@ module.exports = function(grunt) {
 
           securitygroups : {
             "lbsg" : {
-              description : "Opens HTTP to the world, consul and ES port to nodes, plus Kibana to the loadbalancer",
+              description : "Opens HTTP to the world",
               rules : [ {
-                direction : "ingress",
-                ethertype : "IPv4",
-                protocol : "tcp",
-                portRangeMin : 9200,
-                portRangeMax : 9200,
-                remoteIpPrefix : grunt.customConfig.devIPs,
-                remoteIpNodePrefixes : [ "lb", "db" ]
-              }, {
-                direction : "ingress",
-                ethertype : "IPv4",
-                protocol : "tcp",
-                portRangeMin : 5601,
-                portRangeMax : 5601,
-                remoteIpPrefix : grunt.customConfig.devIPs,
-                remoteIpNodePrefixes : [ "lb" ]
-              }, {
                 direction : "ingress",
                 ethertype : "IPv4",
                 protocol : "tcp",
@@ -184,7 +193,7 @@ module.exports = function(grunt) {
                 portRangeMin : 4369,
                 portRangeMax : 4369,
                 remoteIpPrefix : grunt.customConfig.devIPs,
-                remoteIpNodePrefixes : [ "couchdbc" ]
+                remoteIpNodePrefixes : [ "db" ]
               }, {
                 direction : "ingress",
                 ethertype : "IPv4",
@@ -192,7 +201,7 @@ module.exports = function(grunt) {
                 portRangeMin : 5986,
                 portRangeMax : 5986,
                 remoteIpPrefix : grunt.customConfig.devIPs,
-                remoteIpNodePrefixes : [ "couchdbc" ]
+                remoteIpNodePrefixes : [ "db" , "lb"]
               }, {
                 direction : "ingress",
                 ethertype : "IPv4",
@@ -200,10 +209,39 @@ module.exports = function(grunt) {
                 portRangeMin : 9100,
                 portRangeMax : 9200,
                 remoteIpPrefix : grunt.customConfig.devIPs,
-                remoteIpNodePrefixes : [ "couchdbc" ]
+                remoteIpNodePrefixes : [ "db" ]
               } ]
             }
           }
+        },
+
+        // Add usrs to the load-balancer
+        run : {
+          options : {},
+          addharvester : {
+            exec : "htpasswd -b ./images/apache/htpasswd "
+                + grunt.sensitiveConfig.apache.users[0].split(":")[0] + " "
+                + grunt.sensitiveConfig.apache.users[0].split(":")[1]
+          },
+          addreadonly : {
+            exec : "htpasswd -b ./images/apache/htpasswd "
+                + grunt.sensitiveConfig.apache.users[1].split(":")[0] + " "
+                + grunt.sensitiveConfig.apache.users[1].split(":")[1]
+          },
+          addadmin : {
+            exec : "htpasswd -b ./images/apache/htpasswd "
+                + grunt.sensitiveConfig.couchdb.auth.split(":")[0] + " "
+                + grunt.sensitiveConfig.couchdb.auth.split(":")[1]
+          }
+        },
+
+        // Expansion of properties referenced in EJS templates
+        ejs : {
+          all : {
+            src : [ "./nodetypes/lb/vhost.conf" ],
+            dest : "target/",
+            expand : true
+          },
         },
 
         // Add a node to the cluster
@@ -279,6 +317,29 @@ module.exports = function(grunt) {
         }
       });
 
+  /**
+   * After the config is declared it fills the ejs options object with the names
+   * of nodes as defined in the clouddity config section
+   */
+  grunt.config.set("ejs.all.options", (function() {
+    var nodes = {};
+    var nodeNumber = 0;
+    // NOTE: this is _very_ depedendent on the location of the grunt-clouddity
+    // package
+    var utils = require("./node_modules/grunt-clouddity/lib/utils.js");
+    var options = grunt.config.get("clouddity");
+    options.nodetypes.forEach(function(nodeType) {
+      nodes[nodeType.name] = {
+        names : []
+      };
+      for (var i = 1; i <= nodeType.replication; i++) {
+        var name = utils.nodeName(options.cluster, nodeType.name, i);
+        nodes[nodeType.name].names.push(name);
+      }
+    });
+    return nodes;
+  })());
+
   // Dependent tasks declarations
   require("load-grunt-tasks")(grunt, {
     config : "./package.json"
@@ -286,7 +347,8 @@ module.exports = function(grunt) {
   grunt.loadNpmTasks("grunt-wait");
 
   // Setups and builds the Docker images
-  grunt.registerTask("build", [ "dock:build" ]);
+  grunt.registerTask("build", [ "run:addreadonly", "run:addharvester",
+      "run:addadmin", "dock:build" ]);
 
   // Pushes the Docker images to registry
   grunt.registerTask("push", [ "dock:push" ]);
@@ -313,8 +375,9 @@ module.exports = function(grunt) {
   grunt.registerTask("listvolumes", [ "clouddity:listvolumes" ]);
   grunt.registerTask("listcontainers", [ "clouddity:listcontainers" ]);
 
-  // Docker containers creation
-  grunt.registerTask("create", [ "clouddity:run" ]);
+  // Docker containers creation and load balancer configuration update
+  grunt.registerTask("create",
+      [ "ejs", "clouddity:copytohost", "clouddity:run" ]);
 
   // Docker containers management
   grunt.registerTask("stop", [ "clouddity:stop" ]);
