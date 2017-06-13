@@ -1,4 +1,4 @@
-var a = function(head, req) {
+function(head, req) {
 
   provides("json", function() {
 
@@ -8,7 +8,7 @@ var a = function(head, req) {
     };
 
     while (row = getRow()) {
-      features.push(row.value);
+      fc.features.push(row.value);
     }
 
     // make sure to stringify the results :)

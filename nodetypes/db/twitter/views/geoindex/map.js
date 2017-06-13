@@ -14,8 +14,8 @@ function(doc) {
     type : "Feature",
     geometry : {
       type : "Point",
-      coordinates : [ doc.coordinates.coordinates[1],
-          doc.coordinates.coordinates[0] ]
+      coordinates : [ doc.coordinates.coordinates[0],
+          doc.coordinates.coordinates[1] ]
     },
     properties : {
       created_at : doc.created_at,
