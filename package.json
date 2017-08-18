@@ -1,6 +1,6 @@
 {
   "name": "tweet-infra",
-  "version": "0.1.0-SNAPSHOT",
+  "version": "0.2.0-SNAPSHOT",
   "description": "Building and deployment of the Open API infrastructure",
   "private": true,
   "author": {
@@ -8,7 +8,7 @@
     "email": "luca.morandini@unimelb.edu.au"
   },
   "engines": {
-    "node": ">= 6.5.x",
+    "node": ">= 4.2.x",
     "npm": ">= 3.10.x"
   },
   "devDependencies": {

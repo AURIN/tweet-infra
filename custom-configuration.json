@@ -1,3 +1,6 @@
 {
-  "devIPs" : "128.250.0.0/16"
+  "devIPs" : "128.250.0.0/16",
+  "applications" : {
+    "tweet-harvester" : "v0.4.1"
+  }
 }

@@ -23,9 +23,10 @@ module.exports = function(grunt) {
         },
 
         "couch-compile" : {
-          twitter : {
+          dbs : {
             files : {
-              "/tmp/twitter.json" : "nodetypes/db/*"
+              "/tmp/twitter.json" : "nodetypes/db/twitter/twitter",
+              "/tmp/instagram.json" : "nodetypes/db/instagram/instagram"
             }
           }
         },
@@ -34,10 +35,21 @@ module.exports = function(grunt) {
             user : grunt.sensitiveConfig.couchdb.auth.split(":")[0],
             pass : grunt.sensitiveConfig.couchdb.auth.split(":")[1]
           },
-          localhost : {
-            files : {
-              "http://tweet-1-db:5984/twitter" : "/tmp/twitter.json"
-            }
+          twitter : {
+            files : (function() {
+              var obj = {};
+              obj[("http://" + grunt.option("masterip") + ":"
+                  + grunt.sensitiveConfig.couchdb.port + "/twitter")] = "/tmp/twitter.json";
+              return obj;
+            })()
+          },
+          instagram : {
+            files : (function() {
+              var obj = {};
+              obj[("http://" + grunt.option("masterip") + ":"
+                  + grunt.sensitiveConfig.couchdb.port + "/instagram")] = "/tmp/instagram.json";
+              return obj;
+            })()
           }
         },
 
@@ -73,6 +85,29 @@ module.exports = function(grunt) {
                               + grunt.sensitiveConfig.couchdb.auth.split(":")[0],
                           "COUCHDB_PASSWORD="
                               + grunt.sensitiveConfig.couchdb.auth.split(":")[1] ]
+                    },
+                    start : {},
+                    cmd : []
+                  }
+                }
+              },
+              harvester : {
+                dockerfile : "./images/harvester",
+                tag : "4.4",
+                repo : "harvester",
+                options : {
+                  build : {
+                    t : grunt.sensitiveConfig.docker.registry.serveraddress
+                        + "/harvester:4.4",
+                    pull : false,
+                    nocache : false
+                  },
+                  run : {
+                    create : {
+                      HostConfig : {
+                        Binds : [ "/home/ubuntu/:/hostvolume" ],
+                        NetworkMode : "host"
+                      }
                     },
                     start : {},
                     cmd : []
@@ -120,7 +155,7 @@ module.exports = function(grunt) {
                 flavorRef : "639b8b2a-a5a6-4aa2-8592-ca765ee7af63",
                 availability_zone : grunt.sensitiveConfig.pkgcloud.availability_zone,
                 securitygroups : [ "defaultsg", "lbsg" ],
-                images : [ "apache" ],
+                images : [ "apache", "harvester" ],
                 copytohost : [ {
                   from : "./target/nodetypes/lb/",
                   to : "/home/ubuntu"
@@ -128,9 +163,9 @@ module.exports = function(grunt) {
               },
               {
                 name : "db",
-                replication : 2,
+                replication : 4,
                 imageRef : "73c6f8d8-f885-4253-8bee-e45da068fb65",
-                flavorRef : "885227de-b7ee-42af-a209-2f1ff59bc330",
+                flavorRef : "4",
                 availability_zone : grunt.sensitiveConfig.pkgcloud.availability_zone,
                 securitygroups : [ "defaultsg", "couchdbsg" ],
                 images : [ "couchdbc" ],
@@ -139,7 +174,7 @@ module.exports = function(grunt) {
 
           volumetypes : [ {
             name : "dbdata",
-            size : 1,
+            size : 1800,
             description : "CouchDB Data",
             volumeType : grunt.sensitiveConfig.pkgcloud.volume_type,
             availability_zone : grunt.sensitiveConfig.pkgcloud.availability_zone_volume,
@@ -201,7 +236,7 @@ module.exports = function(grunt) {
                 portRangeMin : 5986,
                 portRangeMax : 5986,
                 remoteIpPrefix : grunt.customConfig.devIPs,
-                remoteIpNodePrefixes : [ "db" , "lb"]
+                remoteIpNodePrefixes : [ "db", "lb" ]
               }, {
                 direction : "ingress",
                 ethertype : "IPv4",
@@ -232,7 +267,29 @@ module.exports = function(grunt) {
             exec : "htpasswd -b ./images/apache/htpasswd "
                 + grunt.sensitiveConfig.couchdb.auth.split(":")[0] + " "
                 + grunt.sensitiveConfig.couchdb.auth.split(":")[1]
-          }
+          },
+          // Compiles the Node,js applications
+          compile : {
+            exec : ". ~/.nvm/nvm.sh && nvm exec 4.2.2 npm install git+ssh://git@github.com:AURIN/tweet-harvester.git#"
+                + grunt.customConfig.applications["tweet-harvester"]
+          },
+          move : {
+            exec : "cp -r ./node_modules/tweet-harvester ./target/nodetypes/lb"
+          },
+
+          // Cleaning of build files
+          clean : [ "./target" ],
+
+          // Setting up of target directory
+          mkdir : {
+            all : {
+              options : {
+                create : [ "./target", "./target/nodetypes",
+                    "./target/nodetypes/lb" ]
+              }
+            }
+          },
+
         },
 
         // Expansion of properties referenced in EJS templates
@@ -281,7 +338,8 @@ module.exports = function(grunt) {
           createdb : {
             options : {
               url : "http://" + grunt.sensitiveConfig.couchdb.auth + "@"
-                  + grunt.option("masterip") + ":5984/"
+                  + grunt.option("masterip") + ":"
+                  + grunt.sensitiveConfig.couchdb.port + "/"
                   + grunt.option("database"),
               method : "put",
               headers : {
@@ -293,7 +351,8 @@ module.exports = function(grunt) {
           deletedb : {
             options : {
               url : "http://" + grunt.sensitiveConfig.couchdb.auth + "@"
-                  + grunt.option("masterip") + ":5984/"
+                  + grunt.option("masterip") + ":"
+                  + grunt.sensitiveConfig.couchdb.port + "/"
                   + grunt.option("database"),
               method : "delete",
               headers : {
@@ -305,7 +364,8 @@ module.exports = function(grunt) {
           compactdb : {
             options : {
               url : "http://" + grunt.sensitiveConfig.couchdb.auth + "@"
-                  + grunt.option("masterip") + ":5984/"
+                  + grunt.option("masterip") + ":"
+                  + grunt.sensitiveConfig.couchdb.port + "/"
                   + grunt.option("database") + "/_compact",
               method : "post",
               headers : {
@@ -375,9 +435,14 @@ module.exports = function(grunt) {
   grunt.registerTask("listvolumes", [ "clouddity:listvolumes" ]);
   grunt.registerTask("listcontainers", [ "clouddity:listcontainers" ]);
 
-  // Docker containers creation and load balancer configuration update
-  grunt.registerTask("create",
-      [ "ejs", "clouddity:copytohost", "clouddity:run" ]);
+  // Docker containers creation
+  grunt.registerTask("create", [ "clouddity:run" ]);
+
+  // Deployiment of tweet-harvester application, load balancer configuration
+  // update,
+  // and copy to the hosts
+  grunt.registerTask("generate", [ "run:clean", "run:mkdir", "run:compile",
+      "run:move", "ejs", "clouddity:copytohost" ]);
 
   // Docker containers management
   grunt.registerTask("stop", [ "clouddity:stop" ]);

@@ -6,7 +6,21 @@ Tweets harvesting and storage infrastucture
 
 The CouchDB cluster is hiden behind a nApache-base load-balancer, which takes care of authentication.
 
-## Requirements
+
+## Development machine pre-requirements
+
+* Node.js 4.2.2 installed
+* NPM 4.0.2 installed
+* Grunt installed `sudo npm install -g grunt --save-dev`
+* Grunt-cli installed `npm install grunt-cli --save-dev`
+* Docker installed and its daemon running on TCP port 2375 
+  (add this line to the `/etc/default/docker` file: 
+  `DOCKER_OPTS="-H tcp://0.0.0.0:2375 -H unix:///var/run/docker.sock" --insecure-registry cuttlefish.eresearch.unimelb.edu.au --insecure-registry docker.eresearch.unimelb.edu.au`
+  and restart the Docker daemon (`sudo systemctl daemon-reload`)
+* Install tweet-infra: `npm install`
+
+
+## Cluster Requirements
 
 On average 2.2GB of space are needed for every 1M tweets with a replication factor of 3. 
 Therefore, some 194GB are needed (on each node) to host the about 90M tweets that have been harvested so far.
@@ -21,6 +35,8 @@ around 7072GB (or 1768GB per-node).
 
 4 database nodes with 1.7TB each should be enough to cover for contingencies, but periodic compaction would probably 
 lessen the disk space needed. 
+
+On the computer used to 
 
 
 ## Security
@@ -48,6 +64,7 @@ grunt build
 grunt push
 grunt pull
 grunt create
+grunt generate
 grunt start
 ```
 
@@ -84,19 +101,36 @@ grunt http:clusternodes --masterip tweet-1-db && cat /tmp/membership.json
 Create the twitter database and accompanying design documents
 ```
 grunt http:createdb --masterip tweet-1-db --database twitter
-grunt couch-compile couch-push 
+grunt http:createdb --masterip tweet-1-db --database instagram
+grunt couch-compile couch-push --masterip tweet-1-db 
+grunt couch-compile couch-push --masterip tweet-1-db 
 ```
 
 
 ## Deployment tests
 
-This should return a valid GeoJSON for the Melbourne area in `/tmp/b.geojson`
+This should return a valid GeoJSON for the Melbourne area in `/tmp/b.geojson` (read the password from teh `sensitive.json` file)
 ```
 curl -XGET "http://tweet-1-lb/couchdbro/twitter/_design/twitter/_list/geojson/geoindex?\
 reduce=false&start_key=\[\"r1r\",2017,1,1\]&end_key=\[\"r1rzzzzzzzzzz\",2017,\{\},\{\}\]"\
   --user "readonly:<password>"\
   -o /tmp/b.geojson
+cat /tmp/b.geojson
 ```
+
+
+## Querying
+
+```
+curl -XGET "http://45.113.232.90/couchdbro/twitter/_design/twitter/_view/summary?reduce=true&start_key=\[\"adelaide\",2014,7,28\]&end_key=\[\"sydney\",2017,7,1\]&group_level=3" \
+  -vvv --user "readonly:<password>"
+
+curl -XGET "http://45.113.232.90/couchdbro/twitter/_design/twitter/_view/summary?reduce=true&start_key=\[\"adelaide\",2014,7,28\]&end_key=\[\"adelaide\",2017,1,1\]"\
+  -vvv --user "readonly:<password>"
+
+curl -XGET "http://45.113.232.90/couchdbro/twitter/_design/twitter/_view/summary?reduce=false&include_docs=true&start_key=\[\"adelaide\",2014,7,28\]&end_key=\[\"adelaide\",2017,1,1\]"\
+  -vvv --user "readonly:<password>" -o /tmp/twitter.json
+````
 
 
 
@@ -106,5 +140,7 @@ reduce=false&start_key=\[\"r1r\",2017,1,1\]&end_key=\[\"r1rzzzzzzzzzz\",2017,\{\
 ```
 grunt remove
 grunt destroyvolumes
-grunt destroynodes 3
+grunt destroynodes 
 ```
+
+NOTE: due ot a bug somewhere, volumes are not actually deleted after being detached, hence they have to be deleted using the NeCTAR dashboard.
