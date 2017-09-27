@@ -1,17 +1,15 @@
-function(head, req) {
+function (head, req) {
 
   provides("json", function() {
 
-    var fc = {
-      type : "FeatureCollection",
-      features : []
-    };
-
+    send('{"type" : "FeatureCollection", "features" : [');
+    var sep="";
+    
     while (row = getRow()) {
-      fc.features.push(row.value);
+      send(sep + JSON.stringify(row.value));
+      sep=",";
     }
 
-    // make sure to stringify the results :)
-    send(JSON.stringify(fc));
+    send("]}");
   });
 }

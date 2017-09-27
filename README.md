@@ -103,8 +103,18 @@ Create the twitter database and accompanying design documents
 grunt http:createdb --masterip tweet-1-db --database twitter
 grunt http:createdb --masterip tweet-1-db --database instagram
 grunt couch-compile couch-push --masterip tweet-1-db 
-grunt couch-compile couch-push --masterip tweet-1-db 
 ```
+
+## Database creations on development (numberCruncher sevevr)
+
+(Change the admin password accordingly in sensitive.json before)
+```
+grunt http:deletedb --masterip numberCruncher --port 80 --database twitter
+grunt http:deletedb --masterip numberCruncher --port 80 --database instagram
+grunt http:createdb --masterip numberCruncher --port 80 --database twitter
+grunt http:createdb --masterip numberCruncher --port 80 --database instagram
+grunt couch-compile couch-push --masterip numberCruncher --port 80 
+````
 
 
 ## Deployment tests

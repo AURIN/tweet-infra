@@ -39,7 +39,7 @@ module.exports = function(grunt) {
             files : (function() {
               var obj = {};
               obj[("http://" + grunt.option("masterip") + ":"
-                  + grunt.sensitiveConfig.couchdb.port + "/twitter")] = "/tmp/twitter.json";
+                  + (grunt.option("port") || grunt.sensitiveConfig.couchdb.port) + "/twitter")] = "/tmp/twitter.json";
               return obj;
             })()
           },
@@ -47,7 +47,7 @@ module.exports = function(grunt) {
             files : (function() {
               var obj = {};
               obj[("http://" + grunt.option("masterip") + ":"
-                  + grunt.sensitiveConfig.couchdb.port + "/instagram")] = "/tmp/instagram.json";
+                  + (grunt.option("port") || grunt.sensitiveConfig.couchdb.port) + "/instagram")] = "/tmp/instagram.json";
               return obj;
             })()
           }
@@ -339,7 +339,7 @@ module.exports = function(grunt) {
             options : {
               url : "http://" + grunt.sensitiveConfig.couchdb.auth + "@"
                   + grunt.option("masterip") + ":"
-                  + grunt.sensitiveConfig.couchdb.port + "/"
+                  + (grunt.option("port") || grunt.sensitiveConfig.couchdb.port) + "/"
                   + grunt.option("database"),
               method : "put",
               headers : {
@@ -352,7 +352,7 @@ module.exports = function(grunt) {
             options : {
               url : "http://" + grunt.sensitiveConfig.couchdb.auth + "@"
                   + grunt.option("masterip") + ":"
-                  + grunt.sensitiveConfig.couchdb.port + "/"
+                  + (grunt.option("port") || grunt.sensitiveConfig.couchdb.port) + "/"
                   + grunt.option("database"),
               method : "delete",
               headers : {
@@ -365,7 +365,7 @@ module.exports = function(grunt) {
             options : {
               url : "http://" + grunt.sensitiveConfig.couchdb.auth + "@"
                   + grunt.option("masterip") + ":"
-                  + grunt.sensitiveConfig.couchdb.port + "/"
+                  + (grunt.option("port") || grunt.sensitiveConfig.couchdb.port) + "/"
                   + grunt.option("database") + "/_compact",
               method : "post",
               headers : {
