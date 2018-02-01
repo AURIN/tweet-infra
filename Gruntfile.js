@@ -32,8 +32,8 @@ module.exports = function(grunt) {
         },
         "couch-push" : {
           options : {
-            user : grunt.sensitiveConfig.couchdb.auth.split(":")[0],
-            pass : grunt.sensitiveConfig.couchdb.auth.split(":")[1]
+            user : grunt.sensitiveConfig.couchdb.authadmin.split(":")[0],
+            pass : grunt.sensitiveConfig.couchdb.authadmin.split(":")[1]
           },
           twitter : {
             files : (function() {
@@ -82,9 +82,9 @@ module.exports = function(grunt) {
                       Env : [
                           "NODENAME=<%= clouddityRuntime.node.node.address%>",
                           "COUCHDB_USER="
-                              + grunt.sensitiveConfig.couchdb.auth.split(":")[0],
+                              + grunt.sensitiveConfig.couchdb.authadmin.split(":")[0],
                           "COUCHDB_PASSWORD="
-                              + grunt.sensitiveConfig.couchdb.auth.split(":")[1] ]
+                              + grunt.sensitiveConfig.couchdb.authadmin.split(":")[1] ]
                     },
                     start : {},
                     cmd : []
@@ -93,12 +93,12 @@ module.exports = function(grunt) {
               },
               harvester : {
                 dockerfile : "./images/harvester",
-                tag : "4.4",
+                tag : "6.11",
                 repo : "harvester",
                 options : {
                   build : {
                     t : grunt.sensitiveConfig.docker.registry.serveraddress
-                        + "/harvester:4.4",
+                        + "/harvester:6.11",
                     pull : false,
                     nocache : false
                   },
@@ -265,16 +265,16 @@ module.exports = function(grunt) {
           },
           addadmin : {
             exec : "htpasswd -b ./images/apache/htpasswd "
-                + grunt.sensitiveConfig.couchdb.auth.split(":")[0] + " "
-                + grunt.sensitiveConfig.couchdb.auth.split(":")[1]
+                + grunt.sensitiveConfig.couchdb.authadmin.split(":")[0] + " "
+                + grunt.sensitiveConfig.couchdb.authadmin.split(":")[1]
           },
           // Compiles the Node,js applications
           compile : {
-            exec : ". ~/.nvm/nvm.sh && nvm exec 4.2.2 npm install git+ssh://git@github.com:AURIN/tweet-harvester.git#"
-                + grunt.customConfig.applications["tweet-harvester"]
+            exec : ". ~/.nvm/nvm.sh && nvm exec 6.5 npm install git+ssh://git@github.com:AURIN/multi-media-harvester.git#"
+                + grunt.customConfig.applications["multi-media-harvester"]
           },
           move : {
-            exec : "cp -r ./node_modules/tweet-harvester ./target/nodetypes/lb"
+            exec : "cp -r ./node_modules/multi-media-harvester ./target/nodetypes/lb; cp sensitive.json ./target/nodetypes/lb/multi-media-harvester"
           },
 
           // Cleaning of build files
@@ -288,7 +288,7 @@ module.exports = function(grunt) {
                     "./target/nodetypes/lb" ]
               }
             }
-          },
+          }
 
         },
 
@@ -298,14 +298,14 @@ module.exports = function(grunt) {
             src : [ "./nodetypes/lb/vhost.conf" ],
             dest : "target/",
             expand : true
-          },
+          }
         },
 
         // Add a node to the cluster
         http : {
           addcouchnode : {
             options : {
-              url : "http://" + grunt.sensitiveConfig.couchdb.auth + "@"
+              url : "http://" + grunt.sensitiveConfig.couchdb.authadmin + "@"
                   + grunt.option("masterip") + ":5986/_nodes/couchdb@"
                   + grunt.option("slaveip"),
               method : "put",
@@ -317,7 +317,7 @@ module.exports = function(grunt) {
           },
           removecouchnode : {
             options : {
-              url : "http://" + grunt.sensitiveConfig.couchdb.auth + "@"
+              url : "http://" + grunt.sensitiveConfig.couchdb.authadmin + "@"
                   + grunt.option("masterip") + ":5986/_nodes/couchdb@"
                   + grunt.option("slaveip"),
               method : "delete",
@@ -329,7 +329,7 @@ module.exports = function(grunt) {
           },
           clusternodes : {
             options : {
-              url : "http://" + grunt.sensitiveConfig.couchdb.auth + "@"
+              url : "http://" + grunt.sensitiveConfig.couchdb.authadmin + "@"
                   + grunt.option("masterip") + ":5984/_membership",
               method : "get"
             },
@@ -337,7 +337,7 @@ module.exports = function(grunt) {
           },
           createdb : {
             options : {
-              url : "http://" + grunt.sensitiveConfig.couchdb.auth + "@"
+              url : "http://" + grunt.sensitiveConfig.couchdb.authadmin + "@"
                   + grunt.option("masterip") + ":"
                   + (grunt.option("port") || grunt.sensitiveConfig.couchdb.port) + "/"
                   + grunt.option("database"),
@@ -350,7 +350,7 @@ module.exports = function(grunt) {
           },
           deletedb : {
             options : {
-              url : "http://" + grunt.sensitiveConfig.couchdb.auth + "@"
+              url : "http://" + grunt.sensitiveConfig.couchdb.authadmin + "@"
                   + grunt.option("masterip") + ":"
                   + (grunt.option("port") || grunt.sensitiveConfig.couchdb.port) + "/"
                   + grunt.option("database"),
@@ -363,7 +363,7 @@ module.exports = function(grunt) {
           },
           compactdb : {
             options : {
-              url : "http://" + grunt.sensitiveConfig.couchdb.auth + "@"
+              url : "http://" + grunt.sensitiveConfig.couchdb.authadmin + "@"
                   + grunt.option("masterip") + ":"
                   + (grunt.option("port") || grunt.sensitiveConfig.couchdb.port) + "/"
                   + grunt.option("database") + "/_compact",
@@ -438,7 +438,7 @@ module.exports = function(grunt) {
   // Docker containers creation
   grunt.registerTask("create", [ "clouddity:run" ]);
 
-  // Deployiment of tweet-harvester application, load balancer configuration
+  // Deployiment of multi-media-harvester application, load balancer configuration
   // update,
   // and copy to the hosts
   grunt.registerTask("generate", [ "run:clean", "run:mkdir", "run:compile",

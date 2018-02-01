@@ -58,7 +58,8 @@ typings/
 .env
 
 sensitive.json
-/target/
+target/
 
 .project
 .settings/
+.idea/

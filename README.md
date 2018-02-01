@@ -9,8 +9,8 @@ The CouchDB cluster is hiden behind a nApache-base load-balancer, which takes ca
 
 ## Development machine pre-requirements
 
-* Node.js 4.2.2 installed
-* NPM 4.0.2 installed
+* Node.js 6.x installed
+* NPM 3.x installed
 * Grunt installed `sudo npm install -g grunt --save-dev`
 * Grunt-cli installed `npm install grunt-cli --save-dev`
 * Docker installed and its daemon running on TCP port 2375 
@@ -79,7 +79,7 @@ for ip in ${NODES}
 do
   for db in ${DATABASES}
   do
-    grunt http:createdb --masterip ${ip} --database ${db}
+    grunt http:createdb --masterip=${ip} --database=${db}
   done
 done
 ```
@@ -89,31 +89,31 @@ Cluster setup (tweet-1-db is the manager)
 export NODES=`cat /etc/hosts | egrep "tweet-[234567889]-db" | cut -f 1 -d' ' | paste -d' ' -s`
 for ip in ${NODES}
 do
-  grunt http:addcouchnode --masterip tweet-1-db --slaveip ${ip}
+  grunt http:addcouchnode --masterip=tweet-1-db --slaveip=${ip}
 done
 ```
 
 This should show all the nodes being part of the cluster
 ```
-grunt http:clusternodes --masterip tweet-1-db && cat /tmp/membership.json
+grunt http:clusternodes --masterip=tweet-1-db && cat /tmp/membership.json
 ```
 
 Create the twitter database and accompanying design documents
 ```
-grunt http:createdb --masterip tweet-1-db --database twitter
-grunt http:createdb --masterip tweet-1-db --database instagram
-grunt couch-compile couch-push --masterip tweet-1-db 
+grunt http:createdb --masterip=tweet-1-db --database=twitter
+grunt http:createdb --masterip=tweet-1-db --database=instagram
+grunt couch-compile couch-push --masterip=tweet-1-lb --port=80
 ```
 
 ## Database creations on development (numberCruncher sevevr)
 
 (Change the admin password accordingly in sensitive.json before)
 ```
-grunt http:deletedb --masterip numberCruncher --port 80 --database twitter
-grunt http:deletedb --masterip numberCruncher --port 80 --database instagram
-grunt http:createdb --masterip numberCruncher --port 80 --database twitter
-grunt http:createdb --masterip numberCruncher --port 80 --database instagram
-grunt couch-compile couch-push --masterip numberCruncher --port 80 
+grunt http:deletedb --masterip=numberCruncher --port=80 --database=twitter
+grunt http:deletedb --masterip=numberCruncher --port=80 --database=instagram
+grunt http:createdb --masterip=numberCruncher --port=80 --database=twitter
+grunt http:createdb --masterip=numberCruncher --port=80 --database=instagram
+grunt couch-compile couch-push --masterip=numberCruncher --port=80 
 ````
 
 

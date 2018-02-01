@@ -1,1 +1,1 @@
-cd /hostvolume/lb/tweet-harvester && npm start
+cd /hostvolume/lb/multi-media-harvester ; npm run start ; /bin/bash
