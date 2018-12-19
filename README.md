@@ -105,6 +105,22 @@ grunt http:createdb --masterip=tweet-1-db --database=instagram
 grunt couch-compile couch-push --masterip=tweet-1-lb --port=80
 ```
 
+Create the instagram indexes
+```
+grunt http:addgeoindex --masterip=tweet-1-db --database=instagram --no-color && jq '.' /tmp/a.log -M 
+grunt http:listindexes --masterip=tweet-1-db --database=instagram --no-color && jq '.' /tmp/a.log -M
+```
+
+Selects instagram by position and time
+```
+grunt http:querygeo --masterip=tweet-1-db --database=instagram --no-color && jq '.' /tmp/a.log -M 
+```
+
+Drop the instagram indexes
+```
+grunt http:delgeoindex --masterip=tweet-1-db --database=instagram --index=indexes/json/geo-index--no-color && jq '.' /tmp/a.log -M 
+```
+
 ## Database creations on development (numberCruncher sevevr)
 
 (Change the admin password accordingly in sensitive.json before)
@@ -121,9 +137,13 @@ grunt couch-compile couch-push --masterip=numberCruncher --port=80
 
 This should return a valid GeoJSON for the Melbourne area in `/tmp/b.geojson` (read the password from teh `sensitive.json` file)
 ```
+curl -XGET "http://tweet-1-lb/couchdbro/instagram/_design/instagram/_list/geojson/timegeo?\
+reduce=false&start_key=\[2014,1,15,\"r1r0\"\]&end_key=\[2014,1,31,\"r1r1\"\]&skip=0&limit=5"\
+  --user "readonly:ween7ighai9gahR6"
+
 curl -XGET "http://tweet-1-lb/couchdbro/twitter/_design/twitter/_list/geojson/geoindex?\
 reduce=false&start_key=\[\"r1r\",2017,1,1\]&end_key=\[\"r1rzzzzzzzzzz\",2017,\{\},\{\}\]"\
-  --user "readonly:<password>"\
+  --user "readonly:ween7ighai9gahR6"\
   -o /tmp/b.geojson
 cat /tmp/b.geojson
 ```
@@ -133,13 +153,13 @@ cat /tmp/b.geojson
 
 ```
 curl -XGET "http://45.113.232.90/couchdbro/twitter/_design/twitter/_view/summary?reduce=true&start_key=\[\"adelaide\",2014,7,28\]&end_key=\[\"sydney\",2017,7,1\]&group_level=3" \
-  -vvv --user "readonly:<password>"
+  --user "readonly:ween7ighai9gahR6"
 
 curl -XGET "http://45.113.232.90/couchdbro/twitter/_design/twitter/_view/summary?reduce=true&start_key=\[\"adelaide\",2014,7,28\]&end_key=\[\"adelaide\",2017,1,1\]"\
-  -vvv --user "readonly:<password>"
+  --user "readonly:ween7ighai9gahR6"
 
 curl -XGET "http://45.113.232.90/couchdbro/twitter/_design/twitter/_view/summary?reduce=false&include_docs=true&start_key=\[\"adelaide\",2014,7,28\]&end_key=\[\"adelaide\",2017,1,1\]"\
-  -vvv --user "readonly:<password>" -o /tmp/twitter.json
+  -vvv --user "readonly:ween7ighai9gahR6" -o /tmp/twitter.json
 ````
 
 
@@ -154,3 +174,26 @@ grunt destroynodes
 ```
 
 NOTE: due ot a bug somewhere, volumes are not actually deleted after being detached, hence they have to be deleted using the NeCTAR dashboard.
+
+
+curl -XPOST "http://admin:aeyiefiethaeBea2@tweet-1-db:5984/instagram/_find" \
+--header "Content-Type: application/json" \
+--data '{
+   "fields" : ["_id", "user.lang", "user.screen_name", "text", "created_at", "coordinates"],
+   "selector": {
+      "$and": [
+        {"coordinates.coordinates": {"$gt": [100, -31]}},
+        {"coordinates.coordinates": {"$lt": [116, -33]}},
+        {"created_time": {"$gt": "0"}}
+      ]
+   }
+}' -vvv
+
+curl -XPOST "http://admin:aeyiefiethaeBea2@tweet-1-db:5984/instagram/_find" \
+--header "Content-Type: application/json" \
+--data '{
+   "fields" : ["_id", "user.lang", "user.screen_name", "text", "created_at", "coordinates"],
+   "selector": {
+     "_id": "1000017972733809557_760934995"
+   }
+}' -vvv

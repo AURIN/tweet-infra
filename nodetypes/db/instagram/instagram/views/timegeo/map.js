@@ -10,7 +10,7 @@ function(doc) {
   emit([
       date.getFullYear(), date.getMonth() + 1, date.getDate(),
       geohash.encodeGeoHash(doc.coordinates.coordinates[1],
-          doc.coordinates.coordinates[0]) ], {
+          doc.coordinates.coordinates[0]).substr(1, 5) ], {
     type : "Feature",
     geometry : {
       type : "Point",
@@ -18,8 +18,8 @@ function(doc) {
           doc.coordinates.coordinates[1] ]
     },
     properties : {
-      created_at : doc.created_at,
-      text : doc.text,
+      created_at : doc.created_time,
+      text : doc.caption.text,
       location : doc.location
     }
   });

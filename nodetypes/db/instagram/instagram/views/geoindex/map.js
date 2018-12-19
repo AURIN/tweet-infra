@@ -18,8 +18,8 @@ function(doc) {
           doc.coordinates.coordinates[1] ]
     },
     properties : {
-      created_at : doc.created_at,
-      text : doc.text,
+      created_at : doc.created_time,
+      text : doc.caption.text,
       location : doc.location
     }
   });
