@@ -4,7 +4,7 @@ Tweets harvesting and storage infrastucture
 
 ## Architecture
 
-The CouchDB cluster is hiden behind a nApache-base load-balancer, which takes care of authentication.
+The CouchDB cluster is hidden behind a nApache-base load-balancer, which takes care of authentication.
 
 
 ## Development machine pre-requirements
@@ -66,6 +66,13 @@ grunt pull
 grunt create
 grunt generate
 grunt start
+```
+
+## Starting Apache with CLI
+
+```
+docker create --network host --volume /home/ubuntu:/hostvolume --name apache\
+   cuttlefish.eresearch.unimelb.edu.au/apache:2.4.43
 ```
 
 
@@ -197,3 +204,96 @@ curl -XPOST "http://admin:aeyiefiethaeBea2@tweet-1-db:5984/instagram/_find" \
      "_id": "1000017972733809557_760934995"
    }
 }' -vvv
+
+
+## Upgrqde eo CouchDB 2.3.1
+
+* Pull the image
+```shell script
+docker login cuttlefish.eresearch.unimelb.edu.au\
+ --password <password>\
+ --username developer
+docker pull cuttlefish.eresearch.unimelb.edu.au/couchdbc:2.3.1
+```
+
+* Create a container
+(grab the `HOSTNAME` with `docker inspect $(docker ps --quiet) | grep NODENAME`)
+```shell script
+
+# tweet-1-db
+docker create --network=host\
+  --volume='/mnt/couchdbdatavolume:/datavolume'\
+  --name couchdbc\
+  --env NODENAME='45.113.232.75'\
+  --env COUCHDB_USER='admin'\
+  --env COUCHDB_PASSWORD='<password>'\
+  --env CLUSTER_NODES_LIST='tweet-1-db:45.113.232.75,tweet-1-lb:45.113.232.90,tweet-2-db:45.113.232.71,tweet-3-db:45.113.232.68,tweet-4-db:45.113.232.79'\
+  cuttlefish.eresearch.unimelb.edu.au/couchdbc:2.3.1
+docker start couchdbc
+
+# tweet-2-db
+docker create --network=host\
+  --volume='/mnt/couchdbdatavolume:/datavolume'\
+  --name couchdbc\
+  --env NODENAME='45.113.232.71'\
+  --env COUCHDB_USER='admin'\
+  --env COUCHDB_PASSWORD='<password>'\
+  --env CLUSTER_NODES_LIST='tweet-1-db:45.113.232.75,tweet-1-lb:45.113.232.90,tweet-2-db:45.113.232.71,tweet-3-db:45.113.232.68,tweet-4-db:45.113.232.79'\
+  cuttlefish.eresearch.unimelb.edu.au/couchdbc:2.3.1
+docker start couchdbc
+
+# tweet-3-db
+docker create --network=host\
+  --volume='/mnt/couchdbdatavolume:/datavolume'\
+  --name couchdbc\
+  --env NODENAME='45.113.232.68'\
+  --env COUCHDB_USER='admin'\
+  --env COUCHDB_PASSWORD='<password>'\
+  --env CLUSTER_NODES_LIST='tweet-1-db:45.113.232.75,tweet-1-lb:45.113.232.90,tweet-2-db:45.113.232.71,tweet-3-db:45.113.232.68,tweet-4-db:45.113.232.79'\
+  cuttlefish.eresearch.unimelb.edu.au/couchdbc:2.3.1
+docker start couchdbc
+
+# tweet-3-db
+docker create --network=host\
+  --volume='/mnt/couchdbdatavolume:/datavolume'\
+  --name couchdbc\
+  --env NODENAME='45.113.232.79'\
+  --env COUCHDB_USER='admin'\
+  --env COUCHDB_PASSWORD='<password>'\
+  --env CLUSTER_NODES_LIST='tweet-1-db:45.113.232.75,tweet-1-lb:45.113.232.90,tweet-2-db:45.113.232.71,tweet-3-db:45.113.232.68,tweet-4-db:45.113.232.79'\
+  cuttlefish.eresearch.unimelb.edu.au/couchdbc:2.3.1
+docker start couchdbc
+```
+
+Check n. of documents on different servers:
+```shell script
+USER=`jq '.couchdb.authadmin' sensitive.json | sed s/\"//g`
+echo '' > /tmp/instagram.txt
+for n in {1..4}; do 
+  echo "http://tweet-${n}-db:5984/instagram"
+  curl -XGET "http://tweet-${n}-db:5984/instagram" --user "${USER}"\
+  | jq '.doc_count' >> /tmp/instagram.txt
+done
+cat /tmp/instagram.txt
+
+echo '' > /tmp/twitter.txt
+for n in {1..4}; do 
+  echo "http://tweet-${n}-db:5984/twitter"
+  curl -XGET "http://tweet-${n}-db:5984/twitter" --user "${USER}"\
+  | jq '.doc_count' >> /tmp/twitter.txt
+done
+echo Twitter
+cat /tmp/twitter.txt
+
+```
+
+Check database size on different servers:
+```shell script
+for n in {1..4}; do
+  ssh ubuntu@tweet-${n}-db 'df -h | grep data' 
+done
+
+for n in {1..4}; do
+  ssh ubuntu@tweet-${n}-db 'df -h' | grep vda1
+done
+```

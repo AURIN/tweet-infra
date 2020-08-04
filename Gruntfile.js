@@ -64,12 +64,12 @@ module.exports = function (grunt) {
           images: {
             couchdbc: {
               dockerfile: "./images/couchdbc",
-              tag: "2.0.0",
+              tag: "2.3.1",
               repo: "couchdbc",
               options: {
                 build: {
                   t: grunt.sensitiveConfig.docker.registry.serveraddress
-                  + "/couchdbc:2.0.0",
+                    + "/couchdbc:2.3.1",
                   pull: false,
                   nocache: false
                 },
@@ -82,55 +82,9 @@ module.exports = function (grunt) {
                     Env: [
                       "NODENAME=<%= clouddityRuntime.node.node.address%>",
                       "COUCHDB_USER="
-                      + grunt.sensitiveConfig.couchdb.authadmin.split(":")[0],
+                      + grunt.sensitiveConfig.couchdb.authadmin.split (":")[0],
                       "COUCHDB_PASSWORD="
-                      + grunt.sensitiveConfig.couchdb.authadmin.split(":")[1]]
-                  },
-                  start: {},
-                  cmd: []
-                }
-              }
-            },
-            harvester: {
-              dockerfile: "./images/harvester",
-              tag: "6.11",
-              repo: "harvester",
-              options: {
-                build: {
-                  t: grunt.sensitiveConfig.docker.registry.serveraddress
-                  + "/harvester:6.11",
-                  pull: false,
-                  nocache: false
-                },
-                run: {
-                  create: {
-                    HostConfig: {
-                      Binds: ["/home/ubuntu/:/hostvolume"],
-                      NetworkMode: "host"
-                    }
-                  },
-                  start: {},
-                  cmd: []
-                }
-              }
-            },
-            apache: {
-              dockerfile: "./images/apache",
-              tag: "2.4",
-              repo: "apache",
-              options: {
-                build: {
-                  t: grunt.sensitiveConfig.docker.registry.serveraddress
-                  + "/apache:2.4",
-                  pull: false,
-                  nocache: false
-                },
-                run: {
-                  create: {
-                    HostConfig: {
-                      Binds: ["/home/ubuntu/:/hostvolume"],
-                      NetworkMode: "host"
-                    }
+                      + grunt.sensitiveConfig.couchdb.authadmin.split (":")[1]]
                   },
                   start: {},
                   cmd: []

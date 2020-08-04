@@ -1,4 +1,4 @@
-# CouchDB 2.0 - Clustered
+# CouchDB 2.3.1 - Clustered
 
 Based on https://github.com/ConSol/docker-appserver
 
@@ -7,7 +7,7 @@ Based on https://github.com/ConSol/docker-appserver
 
 Builds the image
 ```
-  docker build -t "couchdbc/2.0.0" .
+  docker build -t "couchdbc/2.3.1" .
 ```
 
 Creates the filesystema to hold the clustered databases:
@@ -30,13 +30,13 @@ The admin password should be changed, of course, and proably the IP addresses.
   node3ip=172.17.0.4
   pwd=ZSDMB2R8Q25wf557
 
-  node1=`docker create --env NODENAME=${node1ip} --env COUCHDB_USER=admin --env COUCHDB_PASSWORD=${pwd} -v /var/local/couchdb1:/opt/couchdb/data couchdbc/2.0.0`
+  node1=`docker create --env NODENAME=${node1ip} --env COUCHDB_USER=admin --env COUCHDB_PASSWORD=${pwd} -v /var/local/couchdb1:/opt/couchdb/data couchdbc/2.3.1`
   echo "docker start ${node1} && docker logs -f ${node1}" > node1.sh && chmod a+x node1.sh
 
-  node2=`docker create --env NODENAME=${node2ip} --env COUCHDB_USER=admin --env COUCHDB_PASSWORD=${pwd} -v /var/local/couchdb2:/opt/couchdb/data couchdbc/2.0.0`
+  node2=`docker create --env NODENAME=${node2ip} --env COUCHDB_USER=admin --env COUCHDB_PASSWORD=${pwd} -v /var/local/couchdb2:/opt/couchdb/data couchdbc/2.3.1`
   echo "docker start ${node2} && docker logs -f ${node2}" > node2.sh && chmod a+x node2.sh
 
-  node3=`docker create --env NODENAME=${node3ip} --env COUCHDB_USER=admin --env COUCHDB_PASSWORD=${pwd} -v /var/local/couchdb3:/opt/couchdb/data couchdbc/2.0.0`
+  node3=`docker create --env NODENAME=${node3ip} --env COUCHDB_USER=admin --env COUCHDB_PASSWORD=${pwd} -v /var/local/couchdb3:/opt/couchdb/data couchdbc/2.3.1`
   echo "docker start ${node3} && docker logs -f ${node3}" > node3.sh && chmod a+x node3.sh
 
   cnt="${node1} ${node2} ${node3}" && echo ${cnt}
