@@ -1,0 +1,33 @@
+# NOTE: since the CouchDB service provided by the Helm chart has no NodePort,
+# ab intermediate service has to be created
+#
+apiVersion: v1
+kind: Service
+metadata:
+  name: "couchdb-ingress-service"
+spec:
+  type: NodePort
+  selector:
+    app: "couchdb"
+  ports:
+    - name: http
+      protocol: TCP
+      port: 80
+      targetPort: 5984
+---
+apiVersion: networking.k8s.io/v1beta1
+kind: Ingress
+metadata:
+  name: "couchdb-ingress"
+  annotations:
+    kubernetes.io/ingress.class: "openstack"
+    octavia.ingress.kubernetes.io/internal: "false"
+spec:
+  rules:
+    - http:
+        paths:
+          - path: /
+            backend:
+              serviceName: "couchdb-ingress-service"
+              servicePort: 80
+

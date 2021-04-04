@@ -66,20 +66,6 @@ add)
   )
   ;;
 
-provisiondryrun)
-  (
-    echo "\
-    openstack coe cluster create \
-      --cluster-template "${CLUSTER_TEMPLATE}" \
-      --master-flavor ${OS_MASTER_FLAVOR} \
-      --flavor ${OS_FLAVOR} \
-      --master-count ${OS_MASTERS_COUNT} \
-      --node-count ${OS_WORKERS_COUNT} \
-      --timeout 15 \
-      ${CLUSTER_NAME}"
-  )
-  ;;
-
 provision)
   (
     openstack coe cluster create \
@@ -100,11 +86,11 @@ createstorageclass)
   (
     kubectl delete storageclass ${K8S_STORAGECLASS}
     kubectl apply -f /tmp/storage-class.yaml
-    for v in ${VOLUMES}; do
-      export VOLUMEID=${v}
-      cat ./configuration/pv-volume.yaml | envsubst >/tmp/pv-volume.yaml
-      kubectl apply -f /tmp/pv-volume.yaml
-    done
+    #    for v in ${VOLUMES}; do
+    #      export VOLUMEID=${v}
+    #      cat ./configuration/pv-volume.yaml | envsubst >/tmp/pv-volume.yaml
+    #      kubectl apply -f /tmp/pv-volume.yaml
+    #    done
   )
   ;;
 
@@ -124,7 +110,7 @@ checkpods)
 createsecrets)
   (
     kubectl delete secret regcred
-    kubectl delete secret my-release-couchdb
+    kubectl delete secret ${COUCHDB_CHART_RELEASE}-couchdb
     kubectl create namespace ${DP_NAMESPACE}
     kubectl create secret docker-registry regcred \
       --docker-server=${DOCKER_SERVER} \
@@ -133,7 +119,7 @@ createsecrets)
     kubectl patch serviceaccount default \
       --patch '{"imagePullSecrets": [{"name": "regcred"}]}' \
       --namespace default
-    kubectl create secret generic my-release-couchdb \
+    kubectl create secret generic ${COUCHDB_CHART_RELEASE}-couchdb \
       --from-literal=adminUsername=admin \
       --from-literal=adminPassword=${COUCHDB_PASSWORD} \
       --from-literal=cookieAuthSecret=${COUCHDB_COOKIE}
@@ -143,23 +129,25 @@ createsecrets)
 installcouchdb)
   (
     helm repo add couchdb https://apache.github.io/couchdb-helm
-    helm uninstall my-release
+    helm uninstall ${COUCHDB_CHART_RELEASE}
     helm install \
       --version=${COUCHDB_CHART_VERSION} \
+      --set ingress.hosts={${INGRESS_NAME}} \
       --set couchdbConfig.couchdb.uuid=${COUCHDB_INSTANCE_ID} \
       --set allowAdminParty=false \
       --set ingress.enabled=true \
       --set persistentVolume.storageClass=${K8S_STORAGECLASS} \
       --set createAdminSecret=false \
       --set persistentVolume.enabled=true \
-      --set clusterSize=$(echo ${VOLUMES} | wc -w) \
-      my-release couchdb/couchdb
+      --set persistentVolume.size=${OS_VOLUME_SIZE} \
+      --set clusterSize=${COUCHDB_CLUSTER_SIZE} \
+      ${COUCHDB_CHART_RELEASE} couchdb/couchdb
   )
   ;;
 
 completecouchdb)
   (
-    kubectl exec --namespace default -it my-release-couchdb-0 -c couchdb -- \
+    kubectl exec --namespace default -it ${COUCHDB_CHART_RELEASE}-couchdb-0 -c couchdb -- \
       curl -s 'http://127.0.0.1:5984/_cluster_setup' \
       -X POST --header "Content-Type: application/json" \
       --data '{"action": "finish_cluster"}' \
@@ -169,9 +157,11 @@ completecouchdb)
 
 uninstallcouchdb)
   (
-    helm uninstall my-release
+    helm uninstall ${COUCHDB_CHART_RELEASE}
     kubectl get pvc -o json | jq '.items | .[].metadata.name' |
       xargs -i ./cmd.sh kubectl delete pvc {}
+    kubectl get pv -o json | jq '.items | .[].metadata.name' |
+      xargs -i kubectl patch pv {} --type json -p '[{"op": "remove", "path": "/spec/claimRef"}]'
   )
   ;;
 
@@ -189,21 +179,29 @@ dashboard)
   )
   ;;
 
+ingresssetup)
+  (
+    kubectl delete ingress couchdb-ingress
+    kubectl delete service couchdb-ingress-service
+    kubectl apply -f /tmp/couchdb-ingress.yaml
+  )
+  ;;
+
 dnssetup)
   (
-    INGRESSGATEWAY_IP=$(kubectl get svc istio-ingressgateway --namespace istio-system \
-      --output jsonpath="{.status.loadBalancer.ingress[*]['ip']}")
-
+    IP=$(kubectl get ingress couchdb-ingress -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
     ZONE_ID=$(openstack zone list -c id -f value)
     ZONE_NAME=$(openstack zone list -c name -f value)
     RS_IDS=$(openstack recordset list ${ZONE_ID} -f json |
-      jq 'map(select(.name | contains($CLUSTER_NAME + "_" + $DP_NAMESPACE))) | .[].id' \
-        --arg DP_NAMESPACE "${DP_NAMESPACE}" --arg CLUSTER_NAME "${CLUSTER_NAME}")
+      jq 'map(select(.name | contains($CLUSTER_NAME))) | .[].id' \
+        --arg CLUSTER_NAME "${CLUSTER_NAME}")
+
     for rs in ${RS_IDS}; do
       openstack recordset delete ${ZONE_ID} $(echo ${rs} | sed s/\"//g)
     done
-    openstack recordset create ${ZONE_ID} "*.${CLUSTER_NAME}-${DP_NAMESPACE}.${ZONE_NAME}" \
-      --record ${INGRESSGATEWAY_IP} --type A
+
+   openstack recordset create ${ZONE_ID} "couchdb.${CLUSTER_NAME}.${ZONE_NAME}" \
+      --record ${IP} --type A
   )
   ;;
 
@@ -268,37 +266,37 @@ logs)
 #
 copyshards)
   (
-    sudo mkfs -t ext4 /dev/vdd
-    sudo mount /dev/vdd /mnt/couchdb
-
-    sudo mkdir -p /mnt/couchdb/couchdb/data/shards
-
-    sudo cp /mnt/couchdbdatavolume/couchdb/data/_dbs.couch /mnt/couchdb/couchdb/data
-    sudo cp /mnt/couchdbdatavolume/couchdb/data/_replicator.couch /mnt/couchdb/couchdb/data
-    sudo cp /mnt/couchdbdatavolume/couchdb/data/_users.couch /mnt/couchdb/couchdb/data
-    sudo cp /mnt/couchdbdatavolume/couchdb/data/_nodes.couch /mnt/couchdb/couchdb/data
+    sudo mount /dev/vdi /mnt/couchdb
 
     FROM='/mnt/couchdbdatavolume/couchdb/data/shards'
-    TO='/mnt/couchdb/couchdb/data/shards'
+    TO='/mnt/couchdb'
+
+    sudo mkdir ${TO}/shards
+    sudo rm -r ${TO}/shards/*
+
+    sudo cp /mnt/couchdbdatavolume/couchdb/data/_dbs.couch ${TO}
+    sudo cp /mnt/couchdbdatavolume/couchdb/data/_replicator.couch ${TO}
+    sudo cp /mnt/couchdbdatavolume/couchdb/data/_users.couch ${TO}
+    sudo cp /mnt/couchdbdatavolume/couchdb/data/_nodes.couch ${TO}
 
     for f in $(sudo find ${FROM} -mindepth 1 -maxdepth 1 -name "*"); do
-      sudo mkdir -p ${TO}/$(echo ${f} | cut -d'/' -f7)
+      sudo mkdir -p ${TO}/shards/$(echo ${f} | cut -d'/' -f7)
     done
 
     for f in $(sudo find ${FROM} -name "insta*"); do
-      sudo cp ${f} ${TO}/$(echo ${f} | cut -d'/' -f7)
+      sudo cp ${f} ${TO}/shards/$(echo ${f} | cut -d'/' -f7)
     done
 
     for f in $(sudo find ${FROM} -name "_users*"); do
-      sudo cp ${f} ${TO}/$(echo ${f} | cut -d'/' -f7)
+      sudo cp ${f} ${TO}/shards/$(echo ${f} | cut -d'/' -f7)
     done
 
     for f in $(sudo find ${FROM} -name "_replic*"); do
-      sudo cp ${f} ${TO}/$(echo ${f} | cut -d'/' -f7)
+      sudo cp ${f} ${TO}/shards/$(echo ${f} | cut -d'/' -f7)
     done
 
     for f in $(sudo find ${FROM} -name "_meta*"); do
-      sudo cp ${f} ${TO}/$(echo ${f} | cut -d'/' -f7)
+      sudo cp ${f} ${TO}/shards/$(echo ${f} | cut -d'/' -f7)
     done
   )
   ;;

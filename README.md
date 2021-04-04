@@ -1,299 +1,392 @@
 # tweet-infra
-Tweets harvesting and storage infrastucture
+
+Infrastructure code for Social media harvesting and storing.
 
 
-## Architecture
+## Pre-requirements
 
-The CouchDB cluster is hidden behind a nApache-base load-balancer, which takes care of authentication.
-
-
-## Development machine pre-requirements
-
-* Node.js 6.x installed
-* NPM 3.x installed
-* Grunt installed `sudo npm install -g grunt --save-dev`
-* Grunt-cli installed `npm install grunt-cli --save-dev`
-* Docker installed and its daemon running on TCP port 2375 
-  (add this line to the `/etc/default/docker` file: 
-  `DOCKER_OPTS="-H tcp://0.0.0.0:2375 -H unix:///var/run/docker.sock" --insecure-registry cuttlefish.eresearch.unimelb.edu.au --insecure-registry docker.eresearch.unimelb.edu.au`
-  and restart the Docker daemon (`sudo systemctl daemon-reload`)
-* Install tweet-infra: `npm install`
+* jq 1.6.x
+* OpenStack client 5.3.x (Heat, Magnum, Designate, Neutron) 
+* Kubectl client >= v1.18.x
+* Helm 3.2.x
+* Unix-like shell (tested on Ubuntu)
+* SSH keypair loaded pn the OpenStack Dashboard  (MRC or NeCTAR) of the project
+* client-keystone-auth Kubernetest plugin
+* Download the OpenStack RC File from the OpenStack Dashboard (MRC or NeCTAR)
 
 
-## Cluster Requirements
+## Configuration
 
-On average 2.2GB of space are needed for every 1M tweets with a replication factor of 3. 
-Therefore, some 194GB are needed (on each node) to host the about 90M tweets that have been harvested so far.
-In addition, 182M tweets are expected to be collected every year, hence 393GB are needed, per-node, every year. 
+Passwords and authorization details can be set, as environment variables, in `secrets.sh`.
+Various configuration parameters (number of Swarm service replicas, etc) can be set in `configuration.sh`.
 
-Total storage need to (on a four-node cluster, with some slack) are as follows:
-* Existing 90M tweets take 194GB * 4 = 778GB 
-* New (yearly) 180M tweets take 393G * 4 = 1573GB 
+The `secrets.sh` must follow this template:
 
-To keep the system running for 4 years and store the already collected tweets, the total storage space would be:
-around 7072GB (or 1768GB per-node).
+```shell script
+#!/bin/bash
+export OS_AUTH_TYPE="password"
+export OS_USERNAME=openstack user
+export OS_PASSWORD=openstack password
+export OS_AUTH_URL=keystone URL
+export KEY_NAME=openstack SSH key pair
 
-4 database nodes with 1.7TB each should be enough to cover for contingencies, but periodic compaction would probably 
-lessen the disk space needed. 
+export OAUTH_CLIENT_ID=GitHub application client ID
+export OAUTH_CLIENT_SECRET=GitHub application secret
 
-On the computer used to 
+export DOCKER_SERVER=docker registry server hostname
+export DOCKER_USERNAME=docker registry username
+export DOCKER_PASSWORD=docker registry password
+export DOCKER_EMAIL=docker registry email address
 
-
-## Security
-
-The load-balancer defined three users:
-* readonly (`/couchdbro` path): user that is allowed only to issues GET, HEAD and OPTIONS HTTP methods  
-* harvester (`/couchdbh` path): user that is allowrd to modify CouchDB, bar what is allowed to admins only
-* admin (`/` path): CouchDB admin (can be used to setup the CouchDB cluster, since it is mapped to port 5986) 
-
-The `admin` user is a CouchDB user as well (same password). 
-
-
-## Provisioning
-
-```
-grunt launchnodes 
-grunt launchvolumes
-```
-
-To make life easier, the cluster IP addresses should be added to `/etc/hosts`, by
-taking the output of `grunt listnodes --hosts-format` and adding it to `/etc/hosts`. 
-
-```
-grunt build 
-grunt push
-grunt pull
-grunt create
-grunt generate
-grunt start
-```
-
-## Starting Apache with CLI
-
-```
-docker create --network host --volume /home/ubuntu:/hostvolume --name apache\
-   cuttlefish.eresearch.unimelb.edu.au/apache:2.4.43
+export COUCHDB_PASSWORD='CouchDB admin password'
+export COUCHDB_COOKIE='cookie used to authetnicate COuchDB nodes'
 ```
 
 
-## CouchDB setup
+## The cmd.sh script
 
-Creation of default database
+This is used to setup the configuration and execute command on the cluster; it could be used a shorthand for executing
+`kubectl` commands as well, using ans alias such as:
+```shell script
+alias k='./cmd.sh kubectl'
+alias o='./cmd.sh openstack'
 ```
-export NODES=`cat /etc/hosts | egrep "tweet-.-db" | cut -f 1 -d' ' | paste -d' ' -s`
-export DATABASES='_users _global_changes _metadata _replicator'
-for ip in ${NODES}
-do
-  for db in ${DATABASES}
-  do
-    grunt http:createdb --masterip=${ip} --database=${db}
-  done
-done
-```
+To store cluster configurations, a directory has to be created `mkdir configuration/kubeconfig`.
+ 
+NOTE: every `yaml` file in the configuration directoryu has its environment variables expanded and the reulst is put under the `/tmp` directory before exectuing any other command.
 
-Cluster setup (tweet-1-db is the manager)
-```
-export NODES=`cat /etc/hosts | egrep "tweet-[234567889]-db" | cut -f 1 -d' ' | paste -d' ' -s`
-for ip in ${NODES}
-do
-  grunt http:addcouchnode --masterip=tweet-1-db --slaveip=${ip}
-done
+NOTE: to show the actual commands beong executed prefix the call to `cmd.sh` with `DEBUG=true`. 
+
+
+## Adding yourself as admin to an existing cluster that was not created by you
+
+```shell script
+./cmd.sh add
 ```
 
-This should show all the nodes being part of the cluster
+To add your user as cluster admin to an existing cluster, the cluster creator has to execute:
 ```
-grunt http:clusternodes --masterip=tweet-1-db && cat /tmp/membership.json
+./cmd.sh kubectl create clusterrolebinding clusteradmin-<your OS_USERNAME>\
+   --clusterrole=cluster-admin --user=<your OS_USERNAME>
+```  
+
+
+## Cluster provisioning
+
+This command provisions the Kubernetes VMs and its volumes
+```shell script
+./cmd.sh provision
+```
+(After the cluster is created, it may be in "unhealty" status for a while, wait until the cluster is "healthy".)
+
+
+From now on, the Kubernetes configuration has to be set whenever a new shell is started, hence this command
+has ot be executed once per session, lest the other commands fail to find the correct configuration (the configuration file `config` is written in
+the `configuration/kubeconfig` directory, and `KUBECONFIG` is set accordingly)
+```shell script
+./cmd.sh set
+```
+Check the `server:` port value in the `config` file, as sometimes the port is incorrectly stated as `84438443`.
+
+`
+Sometimes the overlay network component is not started correctly, hence it is better to drop and recreate it:
+```shell script
+./cmd.sh kubectl delete pod -l app=flannel -n kube-system
+watch -n 10 ./cmd.sh kubectl get pod -l app=flannel -n kube-system 
 ```
 
-Create the twitter database and accompanying design documents
-```
-grunt http:createdb --masterip=tweet-1-db --database=twitter
-grunt http:createdb --masterip=tweet-1-db --database=instagram
-grunt couch-compile couch-push --masterip=tweet-1-lb --port=80
+Check Kubernetest cluster existence (it should return 403)
+```shell script
+./cmd.sh checkcluster
 ```
 
-Create the instagram indexes
+Once the cluster is successfully created, create the storage class that comprise the existing volumes
+(see the `configuration,sh` file)
+```shell script
+./cmd.sh createstorageclass
+
 ```
-grunt http:addgeoindex --masterip=tweet-1-db --database=instagram --no-color && jq '.' /tmp/a.log -M 
-grunt http:listindexes --masterip=tweet-1-db --database=instagram --no-color && jq '.' /tmp/a.log -M
+NOTE: by default a Permanent Volume Claim is created by JupyterHub for every single user and then attached to the JupyterLab 
+pod as sson as that is started. This leads to as many PVCs as users (active or not), which may exceed the threshold for Cinder
+volumes allocated to the OPenStack tenancy. Alternatively, a shared volume may be used, partitioned amongst all users.
+
+
+Setup of Docker Registry credentials (`regcred`)
+```shell script
+./cmd.sh createsecrets
 ```
 
-Selects instagram by position and time
-```
-grunt http:querygeo --masterip=tweet-1-db --database=instagram --no-color && jq '.' /tmp/a.log -M 
+
+## CouchDB
+
+### Installation
+
+```shell
+./cmd.sh  installcouchdb
 ```
 
-Drop the instagram indexes
-```
-grunt http:delgeoindex --masterip=tweet-1-db --database=instagram --index=indexes/json/geo-index--no-color && jq '.' /tmp/a.log -M 
+To check the CouchDB deployment:
+```shell
+./cmd.sh kubectl get pods --namespace default -l "app=couchdb,release=couchdb-release"
 ```
 
-## Database creations on development (numberCruncher sevevr)
-
-(Change the admin password accordingly in sensitive.json before)
+Once all the pods are running, the cluster configuration has to be completed with:
+```shell
+./cmd.sh completecouchdb
 ```
-grunt http:deletedb --masterip=numberCruncher --port=80 --database=twitter
-grunt http:deletedb --masterip=numberCruncher --port=80 --database=instagram
-grunt http:createdb --masterip=numberCruncher --port=80 --database=twitter
-grunt http:createdb --masterip=numberCruncher --port=80 --database=instagram
-grunt couch-compile couch-push --masterip=numberCruncher --port=80 
+
+
+### Ingress Setup
+
+
+Create the ingress service:
+```shell script
+./cmd.sh ingresssetup
+```
+
+Watch Octavia logs to check the Load Balancer ingress service creation 
+```shell
+./cmd.sh kubectl logs -f octavia-ingress-controller-0 -n kube-system
+```
+
+Once the ingress is ready, wait for the external IP address to be created: 
+```shell script
+./cmd.sh kubectl get ingress couchdb-ingress -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
+```
+
+Create the CouchDB hostname on the DNS:
+```shell script
+./cmd.sh dnssetup
+```
+
+For the external hostname, check:
+```shell
+./cmd.sh openstack recordset list $(./cmd.sh openstack zone list -f value -c id) --fit-width
 ````
 
+To check, point your bwowser to:
+`http://couchdb.socmedia.bigtwitter.cloud.edu.au`
 
-## Deployment tests
 
-This should return a valid GeoJSON for the Melbourne area in `/tmp/b.geojson` (read the password from teh `sensitive.json` file)
+### Un-installation
+
+```shell
+./cmd.sh  uninstallcouchdb
 ```
-curl -XGET "http://tweet-1-lb/couchdbro/instagram/_design/instagram/_list/geojson/timegeo?\
-reduce=false&start_key=\[2014,1,15,\"r1r0\"\]&end_key=\[2014,1,31,\"r1r1\"\]&skip=0&limit=5"\
-  --user "readonly:ween7ighai9gahR6"
+(The claims on permanent volumes are deleted, but not the volumes themselves.)
 
-curl -XGET "http://tweet-1-lb/couchdbro/twitter/_design/twitter/_list/geojson/geoindex?\
-reduce=false&start_key=\[\"r1r\",2017,1,1\]&end_key=\[\"r1rzzzzzzzzzz\",2017,\{\},\{\}\]"\
-  --user "readonly:ween7ighai9gahR6"\
-  -o /tmp/b.geojson
-cat /tmp/b.geojson
+
+// XXXXXXXXXXXXXXXXXXXXXX
+
+
+Install certificate manager
+```shell script
+./cmd.sh installcertmanager 
 ```
 
 
-## Querying
+## Kubernetes dashboard
 
+FIXME: it does not wok on the `k8s-dev` cluster, as the `kubernetes-dashboard` service was not created during Magnum provisioning. 
+
+Follow the instructions to display the Kubernetes dashboard displayed by the following command:
+```shell script
+./cmd.sh dashboard
 ```
-curl -XGET "http://45.113.232.90/couchdbro/twitter/_design/twitter/_view/summary?reduce=true&start_key=\[\"adelaide\",2014,7,28\]&end_key=\[\"sydney\",2017,7,1\]&group_level=3" \
-  --user "readonly:ween7ighai9gahR6"
+(An error message is shown when the dashboard admin role exists already.)
 
-curl -XGET "http://45.113.232.90/couchdbro/twitter/_design/twitter/_view/summary?reduce=true&start_key=\[\"adelaide\",2014,7,28\]&end_key=\[\"adelaide\",2017,1,1\]"\
-  --user "readonly:ween7ighai9gahR6"
 
-curl -XGET "http://45.113.232.90/couchdbro/twitter/_design/twitter/_view/summary?reduce=false&include_docs=true&start_key=\[\"adelaide\",2014,7,28\]&end_key=\[\"adelaide\",2017,1,1\]"\
-  -vvv --user "readonly:ween7ighai9gahR6" -o /tmp/twitter.json
+### Kafka installation
+ 
+To install Kafka:
+```shell script
+./cmd.sh installkafka
 ````
 
-
-
-
-## De-commissioning
-
-```
-grunt remove
-grunt destroyvolumes
-grunt destroynodes 
-```
-
-NOTE: due ot a bug somewhere, volumes are not actually deleted after being detached, hence they have to be deleted using the NeCTAR dashboard.
-
-
-curl -XPOST "http://admin:aeyiefiethaeBea2@tweet-1-db:5984/instagram/_find" \
---header "Content-Type: application/json" \
---data '{
-   "fields" : ["_id", "user.lang", "user.screen_name", "text", "created_at", "coordinates"],
-   "selector": {
-      "$and": [
-        {"coordinates.coordinates": {"$gt": [100, -31]}},
-        {"coordinates.coordinates": {"$lt": [116, -33]}},
-        {"created_time": {"$gt": "0"}}
-      ]
-   }
-}' -vvv
-
-curl -XPOST "http://admin:aeyiefiethaeBea2@tweet-1-db:5984/instagram/_find" \
---header "Content-Type: application/json" \
---data '{
-   "fields" : ["_id", "user.lang", "user.screen_name", "text", "created_at", "coordinates"],
-   "selector": {
-     "_id": "1000017972733809557_760934995"
-   }
-}' -vvv
-
-
-## Upgrqde eo CouchDB 2.3.1
-
-* Pull the image
+Wait for all pods to have started:
 ```shell script
-docker login cuttlefish.eresearch.unimelb.edu.au\
- --password <password>\
- --username developer
-docker pull cuttlefish.eresearch.unimelb.edu.au/couchdbc:2.3.1
+./cmd.sh checkpods
+./cmd.sh  kubectl get pods -n kafka
 ```
 
-* Create a container
-(grab the `HOSTNAME` with `docker inspect $(docker ps --quiet) | grep NODENAME`)
+To install the Avro-based schema registry:
 ```shell script
+./cmd.sh installschemaregistry
+````
 
-# tweet-1-db
-docker create --network=host\
-  --volume='/mnt/couchdbdatavolume:/datavolume'\
-  --name couchdbc\
-  --env NODENAME='45.113.232.75'\
-  --env COUCHDB_USER='admin'\
-  --env COUCHDB_PASSWORD='<password>'\
-  --env CLUSTER_NODES_LIST='tweet-1-db:45.113.232.75,tweet-1-lb:45.113.232.90,tweet-2-db:45.113.232.71,tweet-3-db:45.113.232.68,tweet-4-db:45.113.232.79'\
-  cuttlefish.eresearch.unimelb.edu.au/couchdbc:2.3.1
-docker start couchdbc
-
-# tweet-2-db
-docker create --network=host\
-  --volume='/mnt/couchdbdatavolume:/datavolume'\
-  --name couchdbc\
-  --env NODENAME='45.113.232.71'\
-  --env COUCHDB_USER='admin'\
-  --env COUCHDB_PASSWORD='<password>'\
-  --env CLUSTER_NODES_LIST='tweet-1-db:45.113.232.75,tweet-1-lb:45.113.232.90,tweet-2-db:45.113.232.71,tweet-3-db:45.113.232.68,tweet-4-db:45.113.232.79'\
-  cuttlefish.eresearch.unimelb.edu.au/couchdbc:2.3.1
-docker start couchdbc
-
-# tweet-3-db
-docker create --network=host\
-  --volume='/mnt/couchdbdatavolume:/datavolume'\
-  --name couchdbc\
-  --env NODENAME='45.113.232.68'\
-  --env COUCHDB_USER='admin'\
-  --env COUCHDB_PASSWORD='<password>'\
-  --env CLUSTER_NODES_LIST='tweet-1-db:45.113.232.75,tweet-1-lb:45.113.232.90,tweet-2-db:45.113.232.71,tweet-3-db:45.113.232.68,tweet-4-db:45.113.232.79'\
-  cuttlefish.eresearch.unimelb.edu.au/couchdbc:2.3.1
-docker start couchdbc
-
-# tweet-3-db
-docker create --network=host\
-  --volume='/mnt/couchdbdatavolume:/datavolume'\
-  --name couchdbc\
-  --env NODENAME='45.113.232.79'\
-  --env COUCHDB_USER='admin'\
-  --env COUCHDB_PASSWORD='<password>'\
-  --env CLUSTER_NODES_LIST='tweet-1-db:45.113.232.75,tweet-1-lb:45.113.232.90,tweet-2-db:45.113.232.71,tweet-3-db:45.113.232.68,tweet-4-db:45.113.232.79'\
-  cuttlefish.eresearch.unimelb.edu.au/couchdbc:2.3.1
-docker start couchdbc
-```
-
-Check n. of documents on different servers:
+Wait for all pods to have started:
 ```shell script
-USER=`jq '.couchdb.authadmin' sensitive.json | sed s/\"//g`
-echo '' > /tmp/instagram.txt
-for n in {1..4}; do 
-  echo "http://tweet-${n}-db:5984/instagram"
-  curl -XGET "http://tweet-${n}-db:5984/instagram" --user "${USER}"\
-  | jq '.doc_count' >> /tmp/instagram.txt
-done
-cat /tmp/instagram.txt
+./cmd.sh checkpods
+./cmd.sh  kubectl get all -l app=schema-registry -n kafka
+````
+(It may take several minutes for the service to start.)
 
-echo '' > /tmp/twitter.txt
-for n in {1..4}; do 
-  echo "http://tweet-${n}-db:5984/twitter"
-  curl -XGET "http://tweet-${n}-db:5984/twitter" --user "${USER}"\
-  | jq '.doc_count' >> /tmp/twitter.txt
-done
-echo Twitter
-cat /tmp/twitter.txt
-
-```
-
-Check database size on different servers:
+Make schema registry service available to the `DP_NAMESPACE` namespace
 ```shell script
-for n in {1..4}; do
-  ssh ubuntu@tweet-${n}-db 'df -h | grep data' 
-done
+./cmd.sh setschemaregistryservice
+``` 
 
-for n in {1..4}; do
-  ssh ubuntu@tweet-${n}-db 'df -h' | grep vda1
-done
+
+### Knative installation
+ 
+To install Knative, executes (on the client):
+```shell script
+./cmd.sh installknative
+````
+(If the error `namespaces "knative-eventing" not found` is shown, re-run the command.)
+
+After a few minutes, check initialization of Knative services:
+```shell script
+./cmd.sh checkpods
+./cmd.sh checkknative
 ```
+
+TO start the Knative monitoring dashboard (follow the instructions):
+```shell script
+./cmd.sh knativemonitor
+```
+
+TO start the Knative logging dashboard (follow the instructions):
+```shell script
+./cmd.sh knativelogging
+```
+FIXME: this does not work yet, see AUR-6764
+
+Make Kafka broker available to the `DP_NAMESPACE` namespace:
+```shell script
+./cmd.sh setbrokerservice
+```
+
+ 
+### Test function installation
+
+This assumes the functions are deployed in directories at the same level as this repo ans you are logged to the Docker registry.
+```shell script
+./cmd.sh build ../dpng-echo
+./cmd.sh push ../dpng-echo
+./cmd.sh up ../dpng-echo
+``` 
+
+Once the function is installed (watch it with `./cmd.sh kn service list`:
+```shell script
+./cmd.sh testecho
+``` 
+
+
+## Camel-K installation  
+
+Camel-K iserver installation:
+```shell script
+./cmd.sh installkamel
+```
+
+Check Camel-K installation:
+```shell script
+./cmd.sh checkpods
+./cmd.sh kamel get integrations
+```
+
+
+### Test Camel-K
+
+```shell script
+./cmd.sh testkamel 
+```
+This test requires the Camel-K source code to be installed under the `KAMEL_PATH` directory/. 
+It may take several minutes to start, then print thie message (repeated ad infinutum)
+"[Camel (camel-k) thread #1 - timer://tick] route1 - Hello Camel K!"
+
+
+```shell script
+./cmd.sh testintegration 
+```
+(After severl minutes it should print a stream of `{"body":{"message":"Hello!"}}])` messages.)
+
+
+### Test kafka with Camel-K
+
+Start producer integration: 
+```shell script
+./cmd.sh integrate kafka-prod 
+```
+
+Start consumer integration in another shell: 
+```shell script
+./cmd.sh integrate kafka-cons 
+```
+
+The Kafka events generated by the consumer should be seen consumed by then concsumer.  
+(Stop the consumer first, to avoid building up messages.)
+
+
+### Deployiment of the Data Provider Middleware, workers, and MiddleWare
+
+Create ingress gateways and Issue certificate to secure MiddleWare
+```shell script
+./cmd.sh ingressmw 
+```
+
+Deploy API and Middleware as Knative service 
+```shell script
+./cmd.sh deploymw 
+```
+(For testing the deployment, see system tests of dpng-middleware component.)
+
+Deploy workers as Knative service 
+```shell script
+./cmd.sh deployworkers 
+```
+
+Check workers deployment:
+```shell script
+./cmd.sh kubectl get pods
+```
+(For testing the deployment, see system tests of dpng-middleware component.)
+
+
+## Cluster decommissioning
+
+```shell script
+./cmd.sh unsetdns
+```
+
+```shell script
+./cmd.sh unprovision
+```
+
+Floatings IP addresses woth no fixed IP address attached belonging to any clusters can be delete with:
+```shell script
+./cmd.sh removefloats
+```
+
+
+## Misc
+
+Various Kafka commands:
+
+```shell script
+./cmd.sh kubectl exec -ti my-cluster-kafka-0 -n kafka -- /bin/bas
+./bin/kafka-topics.sh --bootstrap-server my-cluster-kafka-bootstrap:9092\
+  --list --exclude-internal
+./bin/kafka-topics.sh --bootstrap-server my-cluster-kafka-bootstrap:9092\
+  --topic ${TOPIC_NAME} --describe
+./bin/kafka-console-consumer.sh --bootstrap-server my-cluster-kafka-bootstrap:9092\
+  --new-consumer --from-beginning\
+  --topic ${TOPIC_NAME}
+./bin/kafka-topics.sh --bootstrap-server my-cluster-kafka-bootstrap:9092\
+  --create --topic $TOPIC_NAME\
+  --partitions 3 --replication-factor 3 --if-not-exists
+./bin/kafka-topics.sh --bootstrap-server my-cluster-kafka-bootstrap:9092\
+  --delete --topic ${TOPIC_NAME}
+```
+
+
+Deletion of all terminating pods:
+```shell script
+. ./secrets.sh; . ./config.sh
+echo '#!/usr/bin/env bash' > /tmp/term.sh
+kubectl get pods -A | egrep -i '(crashloopbackoff|terminating)' | tr -s ' ' |\
+  awk '{print "kubectl delete pod " $2 " --namespace " $1 " --force --grace-period=0"}' >> /tmp/term.sh
+bash /tmp/term.sh
+```
+
