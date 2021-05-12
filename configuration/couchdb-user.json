@@ -1,0 +1,6 @@
+{
+  "name": "harvester",
+  "password": "${HARVESTER_PASSWORD}",
+  "roles": [],
+  "type": "user"
+}

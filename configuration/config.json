@@ -1,0 +1,228 @@
+{
+  "resultType": "recent",
+  "maxUsers": 100,
+  "minUsers": 0,
+  "harvestIntervalStep": 0.0,
+  "monitorInterval": 900.0,
+  "userClearInterval": 60.0,
+  "heartbeat": {
+    "interval": 300,
+    "twitter": {
+      "views": [
+        "twitter/geoindex",
+        "twitter/summary"
+      ]
+    },
+    "instagram": {
+      "views": [
+        "instagram/geoindex",
+        "instagram/summary"
+      ]
+    }
+  },
+  "keepAlive": true,
+  "maxSockets": 60,
+  "couchdb": {
+    "protocol": "http",
+    "hostname": "${COUCHDB_SERVICE_LOCAL}",
+    "pathname": "",
+    "port": 5984,
+    "twitterdb": "twitter",
+    "instagramdb": "instagram"
+  },
+  "twitterConfig": {
+    "since_id": 0,
+    "radius": 50,
+    "count": 100
+  },
+  "insConfig": {
+    "radius": 50,
+    "count": 100
+  },
+  "logger": {
+    "appenders": [
+      {
+        "category": "instagram",
+        "type": "stdout",
+        "level": "info",
+        "filename": "/var/log/harvester/instagram.log",
+        "pattern": "-yyyy-MM-dd",
+        "layout": {
+          "type": "pattern",
+          "pattern": "[%d{yyyy-MM-dd hh:mm:ss}] [%p] %m"
+        }
+      },
+      {
+        "category": "twitter",
+        "type": "stdout",
+        "level": "info",
+        "filename": "/var/log/harvester/twitter.log",
+        "pattern": "-yyyy-MM-dd",
+        "layout": {
+          "type": "pattern",
+          "pattern": "[%d{yyyy-MM-dd hh:mm:ss}] [%p] %m"
+        }
+      },
+      {
+        "category": "imonitor",
+        "type": "stdout",
+        "level": "debug",
+        "filename": "/var/log/harvester/monitor.log",
+        "pattern": "-yyyy-MM-dd",
+        "layout": {
+          "type": "pattern",
+          "pattern": "[%d{yyyy-MM-dd hh:mm:ss}] [%p] %m"
+        }
+      }
+    ],
+    "replaceConsole": false
+  },
+   "cities" : [
+      {
+        "name" : "melbourne",
+        "harvestInterval" : 90,
+        "location" : {
+          "type" : "Point",
+          "coordinates" : [ -37.814, 144.963 ]
+        },
+        "apikey" : {
+          "twitter":{
+            "consumer_key" : "OIU6V2avAp36yLEMEpfRp8vxw",
+            "consumer_secret" : "${MELBOURNE_TWITTER_CONSUMER_SECRET}",
+            "access_token_key" : "843569533176569856-eAq8APQpSFed60nKIrRx4mVsHgQ9hhe",
+            "access_token_secret" : "4dD6Hn4kTDIT9tSJ5kPqbwNnTqXdWP7TOrt13f2nCmwZI"
+          },
+          "instagram":{
+            "clientId" : "a8e4c544eb9c4fa297aa790b98d7febb",
+            "consumerSecret" : "${MELBOURNE_INSTAGRAM_CONSUMER_SECRET}",
+            "accessToken" : "1447623382.e029fea.74bded2cf2a549899d9838a4b81ad63f"
+          }
+        }
+      },
+      {
+        "name" : "sydney",
+        "harvestInterval" : 135,
+        "location" : {
+          "type" : "Point",
+          "coordinates" : [ -33.868, 151.207 ]
+        },
+        "apikey" : {
+          "twitter":{
+            "consumer_key" : "FRbPcUS5FgkIcXial19xdzM9D",
+            "consumer_secret" : "${SYDNEY_TWITTER_CONSUMER_SECRET}",
+            "access_token_key" : "2349736686-ktsZC2FJkfKEDNj97a5opSTokDOWwmYpMEdoyDd",
+            "access_token_secret" : "9BtdNmuTosNWQ4QufLXIFkZBy1tFoXnS9IfKY0ryw65La"
+          },
+          "instagram":{
+            "clientId":"d29f18c5f7eb4abb908171e8dc0e3cde",
+            "consumerSecret" : "${SYDNEY_INSTAGRAM_CONSUMER_SECRET}",
+            "accessToken" :"4281114253.e029fea.2fde1b2df2994f76a73196e9534e6917"
+          }
+        }
+      },
+      {
+        "name" : "canberra",
+        "harvestInterval" : 80,
+        "location" : {
+          "type" : "Point",
+          "coordinates" : [ -35.283, 149.128 ]
+        },
+        "apikey" : {
+          "twitter":{
+            "consumer_key" : "duqktZ3eOYPNFMmh03voqFbuw",
+            "consumer_secret" : "${CANBERRA_TWITTER_CONSUMER_SECRET}",
+            "access_token_key" : "2349736686-jto3qi4u6X9Jo3iPZkZcbfzm46kTWZdPLER005V",
+            "access_token_secret" : "ufn9sDOfUEFziOUdxlsqdLTTQow84QdV9xfnchT0gv0zQ"
+          },
+          "instagram":{
+            "clientId":"c4d493aabaf04b228147dcb7b143c81c",
+            "consumerSecret" : "${CANBERRA_INSTAGRAM_CONSUMER_SECRET}",
+            "accessToken" :"4280694870.e029fea.392feabf42114199995a02eaad8c4cd8"
+          }
+        }
+      },
+      {
+        "name" : "perth",
+        "harvestInterval" : 90,
+        "location" : {
+          "type" : "Point",
+          "coordinates" : [ -31.952, 115.861 ]
+        },
+        "apikey" : {
+          "twitter":{
+            "consumer_key" : "9scxRDPfvPzdH4VDkwntcUSWQ",
+            "consumer_secret" : "${PERTH_TWITTER_CONSUMER_SECRET}",
+            "access_token_key" : "56972261-LNc6rJvxKcMXs4jb7eZpyoqYSwS6Rr3eSxw8AGQev",
+            "access_token_secret" : "JTFCa6PrQwJd78SyuOSGlVH1tQ4E0DfcYe5A3ibwyt22V"
+          },
+          "instagram":{
+            "clientId":"a467b7ebe5f94f3c9b68e02680e9a74f",
+            "consumerSecret" : "${PERTH_INSTAGRAM_CONSUMER_SECRET}",
+            "accessToken" :"45014271.e029fea.824b9dcf1ede464094331579b4814269"
+          }
+        }
+      },
+      {
+        "name" : "brisbane",
+        "harvestInterval" : 100,
+        "location" : {
+          "type" : "Point",
+          "coordinates" : [ -27.468, 153.028 ]
+        },
+        "apikey" : {
+          "twitter":{
+            "consumer_key" : "Sd1yEmfbe6atYVFSVvqmYJ4fs",
+            "consumer_secret" : "${BRISBANE_TWITTER_CONSUMER_SECRET}",
+            "access_token_key" : "56972261-iJ08SiIidSr55rHuT5xRmqvJAUz36wm6cY2chzPNW",
+            "access_token_secret" : "zOl25IYqL8mWhqNf4TM4QMv72wD5pRf3aPVgG3ujYZGWw"
+          },
+          "instagram":{
+            "clientId":"8539f9538fc1422e9a267727a99157f3",
+            "consumerSecret" : "${BRISBANE_INSTAGRAM_CONSUMER_SECRET}",
+            "accessToken" :"5917789462.e029fea.bdb3b059aa684dd6b216126d674f9835"
+          }
+        }
+      },
+      {
+        "name" : "adelaide",
+        "harvestInterval" : 110,
+        "location" : {
+          "type" : "Point",
+          "coordinates" : [ -34.929, 138.599 ]
+        },
+        "apikey" : {
+          "twitter":{
+            "consumer_key" : "BWlacDV8Zv55hsdlAJK6Io4Lw",
+            "consumer_secret" : "${ADELAIDE_TWITTER_CONSUMER_SECRET}",
+            "access_token_key" : "56972261-NeaRtmxkrnym9f9NEnDBRoQbznwhx1ytqVW1LXDIN",
+            "access_token_secret" : "b7r6LGLiDqAwJd7mw4xPRXs5WaMDkvfU7VxtMNAF0DcpR"
+          },
+          "instagram":{
+            "clientId":"463d1e0c6fc849cc8ba70743ad28c943",
+            "consumerSecret" : "${ADELAIDE_INSTAGRAM_CONSUMER_SECRET}",
+            "accessToken" :"5917828655.e029fea.e7b27dc0b01f49c48498336df07c9669"
+          }
+        }
+      },
+      {
+        "name" : "hobart",
+        "harvestInterval" : 300,
+        "location" : {
+          "type" : "Point",
+          "coordinates" : [ -42.8823389, 147.3110419 ]
+        },
+        "apikey" : {
+          "twitter":{
+            "consumer_key" : "wrt9xZ4FCzf4NoU7h9s5g0X38",
+            "consumer_secret" : "${HOBART_TWITTER_CONSUMER_SECRET}",
+            "access_token_key" : "2349736686-lbDnWAp2ERWPduQzAlhHIcFASfhAkMVNh9vGMYO",
+            "access_token_secret" : "Hkhnc9r78H1WAW2scmdf1MPbiyA7cuZwDoI0BzseVMOYI"
+          },
+          "instagram":{
+            "clientId":"09ab166d2ba64a428a16b091f253fb71",
+            "consumerSecret" : "${HOBART_INSTAGRAM_CONSUMER_SECRET}",
+            "accessToken" :"5916982102.e029fea.fc8a8a1d667d46598b6ddea059aece9a"
+          }
+        }
+      } ]
+}

@@ -5,7 +5,7 @@
 . ./configuration/secrets.sh
 
 shopt -s nullglob
-for f in ./configuration/*.yaml; do
+for f in ./configuration/*.yaml ./configuration/*.json; do
   cat ${f} | envsubst >/tmp/${f##*/}
 done
 
@@ -110,6 +110,8 @@ checkpods)
 createsecrets)
   (
     kubectl delete secret regcred
+    kubectl delete secret harvester-config
+    kubectl delete secret harvester-sensitive
     kubectl delete secret ${COUCHDB_CHART_RELEASE}-couchdb
     kubectl create namespace ${DP_NAMESPACE}
     kubectl create secret docker-registry regcred \
@@ -123,6 +125,10 @@ createsecrets)
       --from-literal=adminUsername=admin \
       --from-literal=adminPassword=${COUCHDB_PASSWORD} \
       --from-literal=cookieAuthSecret=${COUCHDB_COOKIE}
+    kubectl create secret generic harvester-config \
+      --from-file=/tmp/config.json
+    kubectl create secret generic harvester-sensitive \
+      --from-file=/tmp/sensitive.json
   )
   ;;
 
@@ -152,6 +158,12 @@ completecouchdb)
       -X POST --header "Content-Type: application/json" \
       --data '{"action": "finish_cluster"}' \
       --user "admin:${COUCHDB_PASSWORD}"
+  )
+  ;;
+
+installharvester)
+  (
+    kubectl apply -f /tmp/harvester.yaml
   )
   ;;
 
@@ -187,9 +199,38 @@ ingresssetup)
   )
   ;;
 
+createuserscouchdb)
+  (
+    ZONE_NAME=$(openstack zone list -c name -f value)
+    COUCHDB_SERVICE="couchdb.${CLUSTER_NAME}.${ZONE_NAME}"
+
+    curl -s "http://${COUCHDB_SERVICE}/_users/org.couchdb.user:harvester" \
+      -X PUT \
+      --header "Content-Type: application/json" \
+      --header "Accept: application/json" \
+      --data-ascii @/tmp/couchdb-user.json \
+      --user "admin:${COUCHDB_PASSWORD}"
+
+    curl -s "http://${COUCHDB_SERVICE}/twitter/_security" \
+      -X PUT \
+      --header "Content-Type: application/json" \
+      --header "Accept: application/json" \
+      --data '{"admins": { "names": [], "roles": [] }, "members": { "names": ["harvester"], "roles": [] } }' \
+      --user "admin:${COUCHDB_PASSWORD}"
+
+    curl -s "http://${COUCHDB_SERVICE}/instagram/_security" \
+      -X PUT \
+      --header "Content-Type: application/json" \
+      --header "Accept: application/json" \
+      --data '{"admins": { "names": [], "roles": [] }, "members": { "names": ["harvester"], "roles": [] } }' \
+      --user "admin:${COUCHDB_PASSWORD}"
+  )
+  ;;
+
 dnssetup)
   (
     IP=$(kubectl get ingress couchdb-ingress -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+
     ZONE_ID=$(openstack zone list -c id -f value)
     ZONE_NAME=$(openstack zone list -c name -f value)
     RS_IDS=$(openstack recordset list ${ZONE_ID} -f json |
@@ -200,20 +241,19 @@ dnssetup)
       openstack recordset delete ${ZONE_ID} $(echo ${rs} | sed s/\"//g)
     done
 
-   openstack recordset create ${ZONE_ID} "couchdb.${CLUSTER_NAME}.${ZONE_NAME}" \
+    openstack recordset create ${ZONE_ID} "couchdb.${CLUSTER_NAME}.${ZONE_NAME}" \
       --record ${IP} --type A
   )
   ;;
 
 unsetdns)
   (
-    INGRESSGATEWAY_IP=$(kubectl get svc istio-ingressgateway --namespace istio-system \
-      --output jsonpath="{.status.loadBalancer.ingress[*]['ip']}")
-
     ZONE_ID=$(openstack zone list -c id -f value)
     ZONE_NAME=$(openstack zone list -c name -f value)
     RS_IDS=$(openstack recordset list ${ZONE_ID} -f json |
-      jq 'map(select(.name | contains($DP_EP))) | .[].id' --arg DP_EP "${DP_EP}")
+      jq 'map(select(.name | contains($CLUSTER_NAME))) | .[].id' \
+        --arg CLUSTER_NAME "${CLUSTER_NAME}")
+
     for rs in ${RS_IDS}; do
       openstack recordset delete ${ZONE_ID} $(echo ${rs} | sed s/\"//g)
     done
@@ -233,21 +273,6 @@ removefloats)
     for FLOATINGIP_ID in ${FLOATINGIPS_IDS}; do
       openstack floating ip delete $(echo ${FLOATINGIP_ID} | tr -d \")
     done
-  )
-  ;;
-
-installcertmanager)
-  (
-    kubectl create namespace cert-manager
-    helm repo add jetstack https://charts.jetstack.io
-    helm repo update
-    kubectl apply --validate=false \
-      -f https://github.com/jetstack/cert-manager/releases/download/${CERTMANAGER_VERSION}/cert-manager.crds.yaml
-    helm install \
-      --set installCRDs=true \
-      cert-manager jetstack/cert-manager \
-      --namespace cert-manager \
-      --version ${CERTMANAGER_VERSION}
   )
   ;;
 

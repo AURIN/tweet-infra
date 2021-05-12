@@ -25,7 +25,7 @@ export OS_EXTERNAL_NETWORK='melbourne'
 export OS_MASTERS_COUNT=1
 export OS_WORKERS_COUNT=4
 export OS_MASTER_FLAVOR='m3.medium'
-export OS_FLAVOR='m3.medium'
+export OS_FLAVOR='m3.large'
 
 # K8s parameters
 export CLUSTER_TEMPLATE='34539368-9cd4-4978-900f-86065c74d104' # kubernetes-melbourne-v1.17.11
@@ -38,6 +38,7 @@ export K8S_SG="${CLUSTER_NAME}-sg"
 export K8S_SG="${CLUSTER_NAME}-sg"
 export K8S_INGRESS_SG="${CLUSTER_NAME}-ingress-sg"
 export K8S_OTHER_SG="${CLUSTER_NAME}-"
+export COUCHDB_SERVICE_LOCAL='couchdb-release-svc-couchdb.default.svc.cluster.local'
 
 # Ports
 export SSH_PORT=22
@@ -49,3 +50,4 @@ export ES_VOLUME_SIZE='399Gi'
 #export VOLUMES='3e6b46d7-3102-4c68-b641-95e2de4911ab fcb6ca8a-d1a7-44ae-bb96-7f543d13dba8 80847aeb-fef1-4ad3-92ca-25527c7cff48 6797a706-3485-4ca0-b1f6-89d12970edfb'
 export COUCHDB_CLUSTER_SIZE=4
 export COUCHDB_INSTANCE_ID='8385a12c-5224-4e17-8211-f31cbb4b4e3c'
+export HARVESTER_VERSION="1.1.4"
