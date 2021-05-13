@@ -12,6 +12,7 @@ Infrastructure code for Social media harvesting and storing.
 * Unix-like shell (tested on Ubuntu)
 * SSH keypair loaded pn the OpenStack Dashboard  (MRC or NeCTAR) of the project
 * client-keystone-auth Kubernetest plugin
+* Grunt CLI 1.2 (https://gruntjs.com/installing-grunt). To install on Ubuntu: `sudo apt install node-grunt-cli`
 * Download the OpenStack RC File from the OpenStack Dashboard (MRC or NeCTAR)
 
 
@@ -136,8 +137,21 @@ Once all the pods are running, the cluster configuration has to be completed wit
 ```
 
 
-### Ingress Setup
+### Add users
 
+```shell
+./cmd.sh createuserscouchdb
+```
+
+
+### Create design documents (lists, views and validaiton functions)
+
+```shell
+./cmd.sh createdesigncouchdb
+```
+
+
+### Ingress Setup
 
 Create the ingress service:
 ```shell script

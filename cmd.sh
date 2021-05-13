@@ -211,23 +211,44 @@ createuserscouchdb)
       --data-ascii @/tmp/couchdb-user.json \
       --user "admin:${COUCHDB_PASSWORD}"
 
-    curl -s "http://${COUCHDB_SERVICE}/twitter/_security" \
+    curl -s "http://${COUCHDB_SERVICE}/_users/org.couchdb.user:readonly" \
       -X PUT \
       --header "Content-Type: application/json" \
       --header "Accept: application/json" \
-      --data '{"admins": { "names": [], "roles": [] }, "members": { "names": ["harvester"], "roles": [] } }' \
+      --data-ascii @/tmp/couchdb-rouser.json \
       --user "admin:${COUCHDB_PASSWORD}"
 
     curl -s "http://${COUCHDB_SERVICE}/instagram/_security" \
       -X PUT \
       --header "Content-Type: application/json" \
       --header "Accept: application/json" \
-      --data '{"admins": { "names": [], "roles": [] }, "members": { "names": ["harvester"], "roles": [] } }' \
+      --data '{"admins": { "names": ["admin"], "roles": ["admins"] }, "members": { "names": ["harvester", "readonly"], "roles": [] } }' \
+      --user "admin:${COUCHDB_PASSWORD}"
+
+    curl -s "http://${COUCHDB_SERVICE}/twitter/_security" \
+      -X PUT \
+      --header "Content-Type: application/json" \
+      --header "Accept: application/json" \
+      --data '{"admins": { "names": ["admin"], "roles": ["admins"] }, "members": { "names": ["harvester", "readonly"], "roles": [] } }' \
       --user "admin:${COUCHDB_PASSWORD}"
   )
   ;;
 
-dnssetup)
+createdesigncouchdb)
+  (
+    export COUCHDB_SERVICE_ESCAPE=$(echo ${COUCHDB_SERVICE} | sed 's/\./\\./g')
+    export COUCHDB_SERVICE=${COUCHDB_SERVICE}
+    export COUCHDB_PASSWORD=${COUCHDB_PASSWORD}
+    export dbname='twitter'
+    grunt couch-compile --gruntfile Gruntfile-twitter.js
+    grunt couch-push --gruntfile Gruntfile-twitter.js
+    export dbname='instagram'
+    grunt couch-compile --gruntfile Gruntfile-instagram.js
+    grunt couch-push --gruntfile Gruntfile-instagram.js
+  )
+  ;;
+
+  dnssetup)
   (
     IP=$(kubectl get ingress couchdb-ingress -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
 

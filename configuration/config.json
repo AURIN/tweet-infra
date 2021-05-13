@@ -87,10 +87,10 @@
         },
         "apikey" : {
           "twitter":{
-            "consumer_key" : "OIU6V2avAp36yLEMEpfRp8vxw",
+            "consumer_key" : "8fBygMEUZDaJBxHSvpBYNH2wh",
             "consumer_secret" : "${MELBOURNE_TWITTER_CONSUMER_SECRET}",
             "access_token_key" : "843569533176569856-eAq8APQpSFed60nKIrRx4mVsHgQ9hhe",
-            "access_token_secret" : "4dD6Hn4kTDIT9tSJ5kPqbwNnTqXdWP7TOrt13f2nCmwZI"
+            "access_token_secret" : "AAAAAAAAAAAAAAAAAAAAAERUNQEAAAAAfhfk%2B1TnG8K8T%2BAnsUSEXSj%2FA4A%3DWgpI6qu6PckGkVQ2vexW2TQYA7MlxC6cP0eLGy2BZ36XQI3nEB",
           },
           "instagram":{
             "clientId" : "a8e4c544eb9c4fa297aa790b98d7febb",

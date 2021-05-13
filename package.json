@@ -1,0 +1,21 @@
+{
+  "name": "tweet-infra",
+  "version": "3.0.0",
+  "description": "Building and pushing CouchDB design documents",
+  "private": true,
+  "author": {
+    "name": "Luca Morandini",
+    "email": "luca.morandini@unimelb.edu.au"
+  },
+  "engines": {
+    "node": ">= 12.10.x",
+    "npm": ">= 6.10.x"
+  },
+  "devDependencies": {
+    "grunt-cli": "^1.0.x",
+    "grunt-couch": "^1.5.1"
+  },
+  "dependencies": {
+    "grunt": "^1.1.0"
+  }
+}

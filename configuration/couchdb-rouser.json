@@ -1,0 +1,6 @@
+{
+  "name": "readonly",
+  "password": "${READONLY_PASSWORD}",
+  "roles": ["ro"],
+  "type": "user"
+}
