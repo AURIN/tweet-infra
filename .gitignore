@@ -63,3 +63,8 @@ target/
 .project
 .settings/
 .idea/
+
+/configuration/secrets.sh
+/configuration/kubeconfIg
+
+config

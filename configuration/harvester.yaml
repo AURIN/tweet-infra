@@ -1,0 +1,35 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: harvester
+  labels:
+    app: harvester
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: harvester
+  template:
+    metadata:
+      labels:
+        app: harvester
+    spec:
+      containers:
+      - name: harvester
+        image: harbour.aurin.cloud.edu.au/cuttlefish/multi-media-harvester:${HARVESTER_VERSION}
+        volumeMounts:
+          - name: sensitive
+            mountPath: "/usr/src/app/configuration/sensitive.json"
+            subPath: "sensitive.json"
+            readOnly: true
+          - name: config
+            mountPath: "/usr/src/app/configuration/config.json"
+            subPath: "config.json"
+            readOnly: true
+      volumes:
+        - name: sensitive
+          secret:
+            secretName: harvester-sensitive
+        - name: config
+          secret:
+            secretName: harvester-config
